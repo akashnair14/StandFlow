@@ -100,7 +100,7 @@ export async function resetPassword(formData: FormData) {
     }
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/dashboard/settings`,
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
     })
 
     if (error) {
@@ -109,6 +109,30 @@ export async function resetPassword(formData: FormData) {
 
     return { success: 'Check your email for the password reset link.' }
   } catch (err: any) {
+    return { error: err.message || 'An unexpected error occurred.' }
+  }
+}
+
+export async function updatePassword(formData: FormData) {
+  try {
+    const supabase = await createClient()
+    const password = formData.get('password') as string
+
+    if (!password) {
+      return { error: 'Password is required' }
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: password,
+    })
+
+    if (error) {
+      return { error: error.message }
+    }
+
+    return redirect('/login?message=Password updated successfully')
+  } catch (err: any) {
+    if (err.message === 'NEXT_REDIRECT') throw err
     return { error: err.message || 'An unexpected error occurred.' }
   }
 }
