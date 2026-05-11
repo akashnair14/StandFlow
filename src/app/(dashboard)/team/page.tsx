@@ -15,8 +15,39 @@ export default function TeamPage() {
   const [members, setMembers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [teamId, setTeamId] = useState<string | null>(null)
+  const [teamName, setTeamName] = useState('')
+  const [isEditingName, setIsEditingName] = useState(false)
+  const [newTeamName, setNewTeamName] = useState('')
   const [creatingTeam, setCreatingTeam] = useState(false)
   const supabase = createClient()
+
+  async function fetchTeam() {
+    try {
+      setLoading(true)
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: membership } = await supabase.from('team_members').select('team_id, teams(name)').eq('user_id', user.id).single()
+      
+      if (membership) {
+        const { data: teamMembers } = await supabase.from('team_members')
+          .select('*, profiles(*)')
+          .eq('team_id', membership.team_id)
+
+        setMembers(teamMembers || [])
+        setTeamId(membership.team_id)
+        setTeamName((membership.teams as any)?.name || 'My Team')
+        setNewTeamName((membership.teams as any)?.name || 'My Team')
+      } else {
+        setMembers([])
+        setTeamId(null)
+      }
+    } catch (error) {
+      console.error('Error fetching team:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   async function handleCreateTeam() {
     setCreatingTeam(true)
@@ -25,12 +56,10 @@ export default function TeamPage() {
       if (result.error) {
         toast.error(result.error)
       } else if (result.teamId) {
-        setTeamId(result.teamId)
         toast.success('Team initialized!', {
           description: 'Your shareable invite link is now active.'
         })
-        // Re-fetch to show yourself in the list
-        window.location.reload()
+        await fetchTeam()
       }
     } catch (error) {
       toast.error('Failed to initialize team')
@@ -39,27 +68,20 @@ export default function TeamPage() {
     }
   }
 
-  useEffect(() => {
-    async function fetchTeam() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const { data: membership } = await supabase.from('team_members').select('team_id').eq('user_id', user.id).single()
-        if (!membership) return
-
-        const { data: teamMembers } = await supabase.from('team_members')
-          .select('*, profiles(*)')
-          .eq('team_id', membership.team_id)
-
-        setMembers(teamMembers || [])
-        setTeamId(membership.team_id)
-      } catch (error) {
-        console.error('Error fetching team:', error)
-      } finally {
-        setLoading(false)
-      }
+  async function handleUpdateName() {
+    if (!teamId || !newTeamName.trim()) return
+    try {
+      const { error } = await supabase.from('teams').update({ name: newTeamName }).eq('id', teamId)
+      if (error) throw error
+      setTeamName(newTeamName)
+      setIsEditingName(false)
+      toast.success('Team renamed!')
+    } catch (error) {
+      toast.error('Failed to update team name')
     }
+  }
+
+  useEffect(() => {
     fetchTeam()
   }, [])
 
@@ -69,14 +91,43 @@ export default function TeamPage() {
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <h1 className="text-4xl font-black tracking-tight text-[#020101] dark:text-white">Team Directory</h1>
-            <Badge className="bg-[#00695C]/10 text-[#00695C] border-none rounded-lg font-black text-[10px] px-2.5 py-1 uppercase tracking-widest">{members.length} Members</Badge>
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <input 
+                  value={newTeamName}
+                  onChange={(e) => setNewTeamName(e.target.value)}
+                  className="bg-secondary/30 border-none rounded-lg px-3 py-1 text-2xl font-black focus:ring-2 ring-teal-500/20 outline-none"
+                  autoFocus
+                />
+                <Button size="sm" onClick={handleUpdateName} className="bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg px-3 py-1 text-[10px] font-black uppercase">Save</Button>
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingName(false)} className="text-muted-foreground rounded-lg px-3 py-1 text-[10px] font-black uppercase">Cancel</Button>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-4xl font-black tracking-tight text-[#020101] dark:text-white">
+                  {teamId ? teamName : 'Team Directory'}
+                </h1>
+                {teamId && (
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={() => setIsEditingName(true)}
+                    className="h-8 w-8 rounded-lg hover:bg-secondary/50 text-muted-foreground/40"
+                  >
+                    <MoreHorizontal className="w-4 h-4" />
+                  </Button>
+                )}
+              </>
+            )}
+            {teamId && <Badge className="bg-[#00695C]/10 text-[#00695C] border-none rounded-lg font-black text-[10px] px-2.5 py-1 uppercase tracking-widest">{members.length} Members</Badge>}
           </div>
-          <p className="text-muted-foreground font-medium">Managing collaboration and roles for the Engineering team.</p>
+          <p className="text-muted-foreground font-medium">
+            {teamId ? 'Managing collaboration and roles for your high-velocity team.' : 'Connect your team to start collaborating and unlock deep work cycles.'}
+          </p>
         </div>
         
         <div className="flex items-center gap-3">
-          <InviteMemberModal teamId={teamId || 'new'} />
+          {teamId && <InviteMemberModal teamId={teamId} />}
         </div>
       </div>
 
