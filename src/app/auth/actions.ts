@@ -60,11 +60,13 @@ export async function signup(formData: FormData) {
       
       if (teamId) {
         // Join existing team
-        const { error: teamError } = await adminSupabase.from('team_members').insert({
-          team_id: teamId,
-          user_id: data.user.id,
-          role: 'employee'
-        })
+        const { error: teamError } = await adminSupabase
+          .from('team_members')
+          .insert({
+            team_id: teamId,
+            user_id: data.user.id,
+            role: 'employee'
+          })
         if (teamError) console.error('Join Team Error:', teamError.message)
       } else {
         // Create a new team for the solo user
@@ -75,7 +77,7 @@ export async function signup(formData: FormData) {
             owner_id: data.user.id
           })
           .select()
-          .single()
+          .maybeSingle()
 
         if (createTeamError) {
           console.error('Create Team Error:', createTeamError.message)

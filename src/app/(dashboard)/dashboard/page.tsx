@@ -36,14 +36,14 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single()
-      const { data: membership } = await supabase.from('team_members').select('team_id, teams(name)').eq('user_id', user.id).single()
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+      const { data: membership } = await supabase.from('team_members').select('team_id, teams(name)').eq('user_id', user.id).maybeSingle()
       const today = new Date().toISOString().split('T')[0]
       const teamId = membership?.team_id
       
       const { data: teamReports } = await supabase.from('reports').select('*, profiles(*)').eq('team_id', teamId).eq('date', today)
       const { data: teamMembers } = await supabase.from('team_members').select('*, profiles(*)').eq('team_id', teamId)
-      const { data: todayReport } = await supabase.from('reports').select('*').eq('user_id', user.id).eq('date', today).single()
+      const { data: todayReport } = await supabase.from('reports').select('*').eq('user_id', user.id).eq('date', today).maybeSingle()
 
       setData({
         profile,

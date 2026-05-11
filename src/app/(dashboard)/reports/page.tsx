@@ -19,7 +19,7 @@ export default function ReportsPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: membership } = await supabase.from('team_members').select('team_id').eq('user_id', user.id).single()
+      const { data: membership } = await supabase.from('team_members').select('team_id').eq('user_id', user.id).maybeSingle()
       if (!membership) return
 
       const { data: teamReports } = await supabase.from('reports')
