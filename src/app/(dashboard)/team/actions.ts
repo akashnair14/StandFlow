@@ -69,3 +69,39 @@ export async function inviteMember(email: string, teamId: string) {
 
   return { success: true, message: `Real invitation sent to ${email} via Supabase Auth!` }
 }
+
+export async function createTeamAction() {
+  const { createClient, createAdminClient } = await import('@/lib/supabase/server')
+  const supabase = await createClient()
+  const adminSupabase = await createAdminClient()
+  
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  // 1. Get profile name
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+  const name = profile?.full_name?.split(' ')[0] || 'My'
+
+  // 2. Create the team
+  const { data: newTeam, error: createTeamError } = await adminSupabase
+    .from('teams')
+    .insert({
+      name: `${name}'s Team`,
+      owner_id: user.id
+    })
+    .select()
+    .single()
+
+  if (createTeamError) return { error: createTeamError.message }
+
+  // 3. Add user as manager
+  const { error: memberError } = await adminSupabase.from('team_members').insert({
+    team_id: newTeam.id,
+    user_id: user.id,
+    role: 'manager'
+  })
+
+  if (memberError) return { error: memberError.message }
+
+  return { success: true, teamId: newTeam.id }
+}

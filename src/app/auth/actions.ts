@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 
 export async function login(formData: FormData) {
@@ -54,15 +54,40 @@ export async function signup(formData: FormData) {
       return { error: error.message }
     }
 
-    // If we have a teamId and the user was created successfully
-    if (data.user && teamId) {
-      const { error: teamError } = await supabase.from('team_members').insert({
-        team_id: teamId,
-        user_id: data.user.id,
-        role: 'member'
-      })
-      if (teamError) {
-        console.error('Team Member Insert Error:', teamError.message)
+    // If we have a user, handle team association
+    if (data.user) {
+      const adminSupabase = await createAdminClient()
+      
+      if (teamId) {
+        // Join existing team
+        const { error: teamError } = await adminSupabase.from('team_members').insert({
+          team_id: teamId,
+          user_id: data.user.id,
+          role: 'employee'
+        })
+        if (teamError) console.error('Join Team Error:', teamError.message)
+      } else {
+        // Create a new team for the solo user
+        const { data: newTeam, error: createTeamError } = await adminSupabase
+          .from('teams')
+          .insert({
+            name: `${fullName.split(' ')[0]}'s Team`,
+            owner_id: data.user.id
+          })
+          .select()
+          .single()
+
+        if (createTeamError) {
+          console.error('Create Team Error:', createTeamError.message)
+        } else if (newTeam) {
+          // Add as manager to their own team
+          const { error: memberError } = await adminSupabase.from('team_members').insert({
+            team_id: newTeam.id,
+            user_id: data.user.id,
+            role: 'manager'
+          })
+          if (memberError) console.error('Add Manager Error:', memberError.message)
+        }
       }
     }
 

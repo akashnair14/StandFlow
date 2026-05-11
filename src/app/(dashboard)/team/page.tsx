@@ -5,15 +5,39 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent } from '@/components/ui/card'
 import { useEffect, useState } from 'react'
-import { Users, Mail, MessageSquare, MoreHorizontal, UserPlus } from 'lucide-react'
+import { Users, Mail, MessageSquare, MoreHorizontal, UserPlus, ShieldPlus, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InviteMemberModal } from '@/components/team/invite-member-modal'
+import { createTeamAction } from '@/app/(dashboard)/team/actions'
+import { toast } from 'sonner'
 
 export default function TeamPage() {
   const [members, setMembers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [teamId, setTeamId] = useState<string | null>(null)
+  const [creatingTeam, setCreatingTeam] = useState(false)
   const supabase = createClient()
+
+  async function handleCreateTeam() {
+    setCreatingTeam(true)
+    try {
+      const result = await createTeamAction()
+      if (result.error) {
+        toast.error(result.error)
+      } else if (result.teamId) {
+        setTeamId(result.teamId)
+        toast.success('Team initialized!', {
+          description: 'Your shareable invite link is now active.'
+        })
+        // Re-fetch to show yourself in the list
+        window.location.reload()
+      }
+    } catch (error) {
+      toast.error('Failed to initialize team')
+    } finally {
+      setCreatingTeam(false)
+    }
+  }
 
   useEffect(() => {
     async function fetchTeam() {
@@ -109,8 +133,26 @@ export default function TeamPage() {
               <p className="text-3xl font-black tracking-tight text-[#020101] dark:text-white">Solo Mission?</p>
               <p className="text-muted-foreground font-medium text-lg leading-relaxed">It looks like you're the only one here. Invite your team to start collaborating and unlock high-velocity cycles.</p>
             </div>
-            <div className="pt-4 flex justify-center">
-              <InviteMemberModal teamId={teamId || 'new'} />
+            <div className="pt-4 flex flex-col items-center gap-4">
+              {teamId ? (
+                <InviteMemberModal teamId={teamId} />
+              ) : (
+                <Button 
+                  onClick={handleCreateTeam}
+                  disabled={creatingTeam}
+                  className="h-14 rounded-2xl bg-[#00695C] hover:bg-[#004D40] text-white font-black text-sm uppercase tracking-widest gap-3 px-10 shadow-xl shadow-teal-500/20"
+                >
+                  {creatingTeam ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <ShieldPlus className="w-5 h-5" />
+                      Create Team Hub
+                    </>
+                  )}
+                </Button>
+              )}
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/40">It only takes a second to start</p>
             </div>
           </div>
         )}
