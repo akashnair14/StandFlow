@@ -69,8 +69,6 @@ export async function signup(formData: FormData) {
     if (data.user && !data.session) {
       return { error: 'Success! Please check your email to confirm your account.' }
     }
-
-    return redirect('/dashboard')
   } catch (err: any) {
     console.error('Critical Signup Error:', err)
     
@@ -81,6 +79,9 @@ export async function signup(formData: FormData) {
     
     return { error: err.message || 'An unexpected error occurred during signup.' }
   }
+
+  // Redirect must happen OUTSIDE the try/catch block
+  redirect('/dashboard')
 }
 
 export async function signOut() {
