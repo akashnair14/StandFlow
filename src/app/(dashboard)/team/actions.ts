@@ -79,7 +79,12 @@ export async function createTeamAction() {
   if (!user) return { error: 'Not authenticated' }
 
   // 1. Get profile name
-  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .maybeSingle()
+    
   const name = profile?.full_name?.split(' ')[0] || 'My'
 
   // 2. Create the team
@@ -90,7 +95,7 @@ export async function createTeamAction() {
       owner_id: user.id
     })
     .select()
-    .maybeSingle() // Use maybeSingle here too for safety
+    .maybeSingle()
 
   if (createTeamError) {
     if (createTeamError.code === '42P01') {
@@ -118,7 +123,7 @@ export async function createTeamAction() {
     .select('*, profiles(*), teams(*)')
     .eq('team_id', newTeam.id)
     .eq('user_id', user.id)
-    .single()
+    .maybeSingle()
 
   return { success: true, teamId: newTeam.id, data: fullMemberData }
 }
