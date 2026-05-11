@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { signup } from '@/app/auth/actions'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,8 +11,10 @@ import Link from 'next/link'
 import { Loader2, Zap, ArrowRight, UserPlus, ShieldCheck, GitBranch as Github, Globe, CheckCircle2 } from 'lucide-react'
 import { motion } from 'framer-motion'
 
-export default function SignupPage() {
+function SignupForm() {
   const [isLoading, setIsLoading] = useState(false)
+  const searchParams = useSearchParams()
+  const teamId = searchParams.get('team_id')
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -136,6 +139,9 @@ export default function SignupPage() {
                   className="h-16 rounded-2xl bg-secondary/30 border-border/50 focus:ring-[#F6823A]/20 transition-all px-6 text-base font-medium"
                 />
               </div>
+              {teamId && (
+                <input type="hidden" name="team_id" value={teamId} />
+              )}
             </div>
 
             <Button 
@@ -184,6 +190,14 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#020101] text-muted-foreground font-black uppercase tracking-widest text-xs">Loading...</div>}>
+      <SignupForm />
+    </Suspense>
   )
 }
 

@@ -31,6 +31,7 @@ export async function signup(formData: FormData) {
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const fullName = formData.get('full_name') as string
+  const teamId = formData.get('team_id') as string
 
   if (!email || !password || !fullName) {
     return { error: 'All fields are required' }
@@ -48,6 +49,15 @@ export async function signup(formData: FormData) {
 
   if (error) {
     return { error: error.message }
+  }
+
+  // If we have a teamId and the user was created successfully
+  if (data.user && teamId) {
+    await supabase.from('team_members').insert({
+      team_id: teamId,
+      user_id: data.user.id,
+      role: 'member'
+    })
   }
 
   if (data.user && !data.session) {
