@@ -30,14 +30,13 @@ export default function ResetPasswordPage() {
       const result = await updatePassword(formData)
       if (result?.error) {
         toast.error(result.error)
-      } else {
-        toast.success('Password updated successfully!')
-        // Redirect will happen automatically if handled in action
+        setIsLoading(false)
       }
     } catch (error) {
-      toast.error('An unexpected error occurred. Please try again.')
-    } finally {
-      setIsLoading(false)
+      if ((error as any)?.message !== 'NEXT_REDIRECT') {
+        toast.error('An unexpected error occurred. Please try again.')
+        setIsLoading(false)
+      }
     }
   }
 
