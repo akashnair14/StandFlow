@@ -11,7 +11,13 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu'
 import { signOut } from '@/app/auth/actions'
-import { Bell, Search, Plus, User, LogOut, Settings } from 'lucide-react'
+import { Bell, Search, Plus, User, LogOut, Settings, Menu } from 'lucide-react'
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet"
+import { Sidebar } from './sidebar'
 import { Button } from '@/components/ui/button'
 import { ModeToggle } from '@/components/mode-toggle'
 
@@ -22,6 +28,19 @@ interface TopNavProps {
 export function TopNav({ profile }: TopNavProps) {
   return (
     <header className="h-20 border-b bg-white/40 dark:bg-[#020101]/40 backdrop-blur-2xl px-6 md:px-10 flex items-center justify-between sticky top-0 z-30 border-border/40">
+      <div className="flex items-center gap-4 md:hidden">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl">
+              <Menu className="w-5 h-5" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="p-0 w-72 border-none">
+            <Sidebar profile={profile} />
+          </SheetContent>
+        </Sheet>
+      </div>
+
       <div className="flex-1 flex items-center gap-6">
         <div className="relative max-w-lg w-full hidden md:block group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground transition-colors group-focus-within:text-[#F6823A]" />

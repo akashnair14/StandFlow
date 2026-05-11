@@ -8,28 +8,28 @@ import { Button } from '@/components/ui/button'
 import { Bell, ChevronRight } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
+import { useRealtimeReports } from '@/lib/supabase/hooks'
+
 interface TeamOverviewProps {
   teamId?: string
 }
 
 export function TeamOverview({ teamId }: TeamOverviewProps) {
-  const [data, setData] = useState<any>(null)
+  const [members, setMembers] = useState<any[]>([])
+  const reports = useRealtimeReports(teamId || null)
   const supabase = createClient()
 
   useEffect(() => {
     if (!teamId) return
-    async function fetchData() {
-      const today = new Date().toISOString().split('T')[0]
-      const { data: members } = await supabase.from('team_members').select('user_id, profiles(*)').eq('team_id', teamId)
-      const { data: reports } = await supabase.from('reports').select('user_id').eq('team_id', teamId).eq('date', today)
-      setData({ members, reports })
+    async function fetchMembers() {
+      const { data } = await supabase.from('team_members').select('user_id, profiles(*)').eq('team_id', teamId)
+      setMembers(data || [])
     }
-    fetchData()
+    fetchMembers()
   }, [teamId])
 
-  if (!teamId || !data) return null
+  if (!teamId || !members) return null
 
-  const { members, reports } = data
   const reportedUserIds = new Set(reports?.map((r: any) => r.user_id) || [])
 
   return (
