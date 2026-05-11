@@ -89,3 +89,26 @@ export async function signOut() {
   await supabase.auth.signOut()
   redirect('/login')
 }
+
+export async function resetPassword(formData: FormData) {
+  try {
+    const supabase = await createClient()
+    const email = formData.get('email') as string
+
+    if (!email) {
+      return { error: 'Email is required' }
+    }
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/dashboard/settings`,
+    })
+
+    if (error) {
+      return { error: error.message }
+    }
+
+    return { success: 'Check your email for the password reset link.' }
+  } catch (err: any) {
+    return { error: err.message || 'An unexpected error occurred.' }
+  }
+}
