@@ -22,11 +22,15 @@ export default function LoginPage() {
       const result = await login(formData)
       if (result?.error) {
         toast.error(result.error)
+        setIsLoading(false)
       }
     } catch (error) {
-      toast.error('An unexpected error occurred. Please try again.')
-    } finally {
-      setIsLoading(false)
+      // If it's a redirect error, it's actually a success in Next.js server actions
+      // We only show error if it's NOT a redirect
+      if ((error as any)?.message !== 'NEXT_REDIRECT') {
+        toast.error('An unexpected error occurred. Please try again.')
+        setIsLoading(false)
+      }
     }
   }
 

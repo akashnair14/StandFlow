@@ -29,11 +29,13 @@ function SignupForm() {
         } else {
           toast.error(result.error)
         }
+        setIsLoading(false)
       }
     } catch (error) {
-      toast.error('An unexpected error occurred. Please try again.')
-    } finally {
-      setIsLoading(false)
+      if ((error as any)?.message !== 'NEXT_REDIRECT') {
+        toast.error('An unexpected error occurred. Please try again.')
+        setIsLoading(false)
+      }
     }
   }
 
