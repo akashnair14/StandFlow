@@ -11,6 +11,8 @@ import { InviteMemberModal } from '@/components/team/invite-member-modal'
 import { createTeamAction } from '@/app/(dashboard)/team/actions'
 import { toast } from 'sonner'
 
+const supabase = createClient()
+
 export default function TeamPage() {
   const [members, setMembers] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -19,7 +21,6 @@ export default function TeamPage() {
   const [isEditingName, setIsEditingName] = useState(false)
   const [newTeamName, setNewTeamName] = useState('')
   const [creatingTeam, setCreatingTeam] = useState(false)
-  const supabase = createClient()
 
   async function fetchTeam() {
     try {
@@ -64,11 +65,17 @@ export default function TeamPage() {
       const result = await createTeamAction()
       if (result.error) {
         toast.error(result.error)
-      } else if (result.teamId) {
+      } else if (result.teamId && result.data) {
+        // Update state INSTANTLY with the data returned from server
+        const memberData = result.data
+        setTeamId(result.teamId)
+        setMembers([memberData])
+        setTeamName(memberData.teams?.name || 'My Team')
+        setNewTeamName(memberData.teams?.name || 'My Team')
+        
         toast.success('Team initialized!', {
-          description: 'Your shareable invite link is now active.'
+          description: 'Your hub is now live.'
         })
-        await fetchTeam()
       }
     } catch (error) {
       toast.error('Failed to initialize team')

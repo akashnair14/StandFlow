@@ -112,5 +112,13 @@ export async function createTeamAction() {
     return { error: `Failed to join team: ${memberError.message}` }
   }
 
-  return { success: true, teamId: newTeam.id }
+  // 4. Return the full data to avoid a re-fetch delay
+  const { data: fullMemberData } = await adminSupabase
+    .from('team_members')
+    .select('*, profiles(*), teams(*)')
+    .eq('team_id', newTeam.id)
+    .eq('user_id', user.id)
+    .single()
+
+  return { success: true, teamId: newTeam.id, data: fullMemberData }
 }
