@@ -90,9 +90,16 @@ export async function createTeamAction() {
       owner_id: user.id
     })
     .select()
-    .single()
+    .maybeSingle() // Use maybeSingle here too for safety
 
-  if (createTeamError) return { error: createTeamError.message }
+  if (createTeamError) {
+    if (createTeamError.code === '42P01') {
+      return { error: 'Database tables are missing. Please run the provided SQL in your Supabase Dashboard.' }
+    }
+    return { error: `Failed to create team: ${createTeamError.message}` }
+  }
+  
+  if (!newTeam) return { error: 'Team creation failed silently. Please check your database permissions.' }
 
   // 3. Add user as manager
   const { error: memberError } = await adminSupabase.from('team_members').insert({
@@ -101,7 +108,9 @@ export async function createTeamAction() {
     role: 'manager'
   })
 
-  if (memberError) return { error: memberError.message }
+  if (memberError) {
+    return { error: `Failed to join team: ${memberError.message}` }
+  }
 
   return { success: true, teamId: newTeam.id }
 }

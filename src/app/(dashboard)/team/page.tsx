@@ -27,8 +27,17 @@ export default function TeamPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: membership } = await supabase.from('team_members').select('team_id, teams(name)').eq('user_id', user.id).single()
+      // Use maybeSingle to avoid throwing when no team exists
+      const { data: membership, error: memberError } = await supabase
+        .from('team_members')
+        .select('team_id, teams(name)')
+        .eq('user_id', user.id)
+        .maybeSingle()
       
+      if (memberError) {
+        console.error('Fetch Membership Error:', memberError.message)
+      }
+
       if (membership) {
         const { data: teamMembers } = await supabase.from('team_members')
           .select('*, profiles(*)')
@@ -43,7 +52,7 @@ export default function TeamPage() {
         setTeamId(null)
       }
     } catch (error) {
-      console.error('Error fetching team:', error)
+      console.error('Critical Fetch Error:', error)
     } finally {
       setLoading(false)
     }
