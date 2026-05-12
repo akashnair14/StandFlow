@@ -4,25 +4,22 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { ReportForm } from '@/components/reports/report-form'
 import { ReportList } from '@/components/reports/report-list'
-import { TeamOverview } from '@/components/dashboard/team-overview'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { 
   CheckCircle2, 
   AlertCircle, 
-  Users, 
   Calendar, 
-  Zap, 
   BarChart3, 
   FileText, 
   Send,
   ChevronRight,
-  Clock,
-  MoreHorizontal,
-  Plus
+  Plus,
+  Target,
+  ShieldAlert,
+  Zap
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -37,9 +34,19 @@ export default function DashboardPage() {
       if (!user) return
 
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-      const { data: membership } = await supabase.from('team_members').select('team_id, teams(name)').eq('user_id', user.id).maybeSingle()
+      let { data: membership } = await supabase.from('team_members').select('team_id, teams(*)').eq('user_id', user.id).maybeSingle()
       const today = new Date().toISOString().split('T')[0]
-      const teamId = membership?.team_id
+      
+      let teamId = membership?.team_id
+
+      // Fallback: If not in team_members, check if they OWN a team
+      if (!teamId) {
+        const { data: ownedTeam } = await supabase.from('teams').select('*').eq('owner_id', user.id).maybeSingle()
+        if (ownedTeam) {
+          teamId = ownedTeam.id
+          membership = { team_id: teamId, teams: ownedTeam } as any
+        }
+      }
       
       const { data: teamReports } = await supabase.from('reports').select('*, profiles(*)').eq('team_id', teamId).eq('date', today)
       const { data: teamMembers } = await supabase.from('team_members').select('*, profiles(*)').eq('team_id', teamId)
@@ -69,8 +76,7 @@ export default function DashboardPage() {
 
   if (!data) return null
 
-  const { profile, membership, todayReport, teamReports, teamMembers, teamId, today } = data
-  const teamName = (membership?.teams as any)?.name
+  const { teamReports, teamMembers, teamId } = data
   const reportedCount = teamReports?.length || 0
   const totalCount = teamMembers?.length || 0
   const participationRate = totalCount > 0 ? Math.round((reportedCount / totalCount) * 100) : 0
@@ -81,21 +87,26 @@ export default function DashboardPage() {
   const reportsWithBlockers = teamReports?.filter((r: any) => (r.content.blockers?.length || 0) > 0) || []
 
   return (
-    <div className="space-y-12 pb-20">
+    <div className="flex flex-col flex-1 space-y-10 animate-fade-in">
       {/* Header */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border-b border-border/10 pb-8 md:pb-10">
         <div>
-          <h1 className="text-4xl font-black tracking-tight text-[#020101] dark:text-white">Team Overview</h1>
-          <p className="text-muted-foreground font-medium mt-1">Monitoring collaboration and blocker resolution for today.</p>
+          <div className="flex items-center gap-2 mb-1 md:mb-2">
+            <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(76,215,246,0.8)]" />
+            <span className="text-[8px] md:text-[10px] font-black uppercase tracking-[0.4em] text-primary">Live Team Updates</span>
+          </div>
+          <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-foreground uppercase">Workspace</h1>
+          <p className="text-muted-foreground/60 font-medium mt-1 md:mt-2 max-w-xl text-sm md:text-base leading-relaxed">Real-time monitoring of team updates, progress, and blockers.</p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="bg-white dark:bg-zinc-900 border border-border/50 rounded-2xl px-5 py-2.5 flex items-center gap-3 shadow-sm">
-            <span className="text-sm font-black text-muted-foreground uppercase tracking-widest">Engineering Department</span>
-            <ChevronRight className="w-4 h-4 text-muted-foreground/50 rotate-90" />
+          <div className="bg-secondary/40 backdrop-blur-md border border-border/10 rounded-[1.25rem] px-5 py-3 flex items-center gap-3 group hover:border-primary/20 transition-colors">
+            <Target className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-black text-foreground uppercase tracking-widest">All Teams</span>
+            <ChevronRight className="w-4 h-4 text-muted-foreground/30 rotate-90" />
           </div>
-          <div className="bg-white dark:bg-zinc-900 border border-border/50 rounded-2xl px-5 py-2.5 flex items-center gap-3 shadow-sm">
-            <Calendar className="w-4 h-4 text-[#F6823A]" />
-            <span className="text-sm font-black text-[#020101] dark:text-white">
+          <div className="bg-primary/5 backdrop-blur-md border border-primary/20 rounded-[1.25rem] px-5 py-3 flex items-center gap-3 shadow-sm group hover:bg-primary/10 transition-all">
+            <Calendar className="w-4 h-4 text-primary" />
+            <span className="text-xs font-black text-primary uppercase tracking-[0.2em]">
               {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </span>
           </div>
@@ -103,95 +114,121 @@ export default function DashboardPage() {
       </div>
 
       {/* Primary Metrics */}
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="glass-card border-none rounded-[2.5rem] shadow-xl overflow-hidden relative group">
-          <CardContent className="p-10 space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <Card className="glass-card border-none rounded-[1.5rem] md:rounded-[2rem] shadow-2xl overflow-hidden relative group tactical-glow">
+          <div className="absolute top-0 right-0 p-6 md:p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+            <BarChart3 className="w-16 h-16 md:w-24 md:h-24 text-primary" />
+          </div>
+          <CardContent className="p-6 md:p-10 space-y-6 md:space-y-8 relative">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Participation Rate</p>
-              <div className="bg-emerald-500/10 p-2.5 rounded-xl">
-                <BarChart3 className="w-5 h-5 text-emerald-500" />
+              <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-primary">Participation Rate</span>
+              <Badge className="bg-primary/10 text-primary border-none rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest px-2 py-1">Good</Badge>
+            </div>
+            <div>
+              <div className="flex items-end gap-2 md:gap-3 mb-2">
+                <span className="text-4xl md:text-6xl font-black tracking-tighter text-foreground">{participationRate}%</span>
+                <span className="text-[10px] font-black text-primary mb-1 md:mb-2 tracking-widest">+2.4% WOW</span>
               </div>
-            </div>
-            <div className="flex items-end gap-3">
-              <span className="text-6xl font-black tracking-tighter text-[#020101] dark:text-white">{participationRate}%</span>
-              <span className="text-sm font-black text-emerald-500 mb-2">+2.4% vs last week</span>
-            </div>
-            <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-               <div className="h-full bg-emerald-500 rounded-full transition-all duration-1000" style={{ width: `${participationRate}%` }} />
+              <div className="h-1.5 w-full bg-primary/10 rounded-full overflow-hidden">
+                 <div className="h-full bg-primary rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(76,215,246,0.5)]" style={{ width: `${participationRate}%` }} />
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-card border-none rounded-[2.5rem] shadow-xl overflow-hidden relative group">
-          <CardContent className="p-10 space-y-6">
+        <Card className="glass-card border-none rounded-[1.5rem] md:rounded-[2rem] shadow-2xl overflow-hidden relative group">
+          <div className="absolute top-0 right-0 p-6 md:p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+            <Zap className="w-16 h-16 md:w-24 md:h-24 text-primary" />
+          </div>
+          <CardContent className="p-6 md:p-10 space-y-6 md:space-y-8 relative">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Total Reports</p>
-              <div className="bg-[#F6823A]/10 p-2.5 rounded-xl">
-                <FileText className="w-5 h-5 text-[#F6823A]" />
-              </div>
+              <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground/60">Daily Standups</span>
+              <FileText className="w-5 h-5 text-primary/40" />
             </div>
-            <div className="space-y-1">
-              <span className="text-6xl font-black tracking-tighter text-[#020101] dark:text-white">{reportedCount}/{totalCount}</span>
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{totalCount - reportedCount} submissions remaining for the daily cycle.</p>
+            <div className="space-y-2">
+              <div className="flex items-baseline gap-2">
+                <span className="text-4xl md:text-6xl font-black tracking-tighter text-foreground">{reportedCount}</span>
+                <span className="text-xl md:text-2xl font-black text-muted-foreground/40 tracking-tighter">/ {totalCount}</span>
+              </div>
+              <p className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-[0.2em]">{totalCount - reportedCount} missing updates.</p>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="glass-card border-none rounded-[2.5rem] shadow-xl overflow-hidden relative group">
-          <CardContent className="p-10 space-y-6">
+        <Card className="glass-card border-none rounded-[1.5rem] md:rounded-[2rem] shadow-2xl overflow-hidden relative group border-t-2 border-t-destructive/20 md:col-span-2 xl:col-span-1">
+          <div className="absolute top-0 right-0 p-6 md:p-8 opacity-5 group-hover:opacity-10 transition-opacity">
+            <ShieldAlert className="w-16 h-16 md:w-24 md:h-24 text-destructive" />
+          </div>
+          <CardContent className="p-6 md:p-10 space-y-6 md:space-y-8 relative">
             <div className="flex items-center justify-between">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">Active Blockers</p>
-              <div className="bg-rose-500/10 p-2.5 rounded-xl">
-                <AlertCircle className="w-5 h-5 text-rose-500" />
-              </div>
+              <span className="text-[9px] md:text-[10px] font-black uppercase tracking-[0.3em] text-destructive">Active Blockers</span>
+              <AlertCircle className="w-5 h-5 text-destructive/40" />
             </div>
-            <div className="flex items-end gap-6">
-              <span className="text-6xl font-black tracking-tighter text-[#020101] dark:text-white">{blockerCount.toString().padStart(2, '0')}</span>
-              <div className="flex gap-2 mb-2">
-                <Badge className="bg-rose-500/10 text-rose-500 border-none rounded-lg font-black text-[10px] uppercase px-2.5 py-1">Critical</Badge>
-                <Badge className="bg-amber-500/10 text-amber-500 border-none rounded-lg font-black text-[10px] uppercase px-2.5 py-1">Resolving</Badge>
+            <div className="flex items-end gap-4 md:gap-6">
+              <span className="text-4xl md:text-6xl font-black tracking-tighter text-foreground">{blockerCount.toString().padStart(2, '0')}</span>
+              <div className="flex flex-col gap-1 md:gap-1.5 mb-1 md:mb-2">
+                <Badge className="bg-destructive/10 text-destructive border-none rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest px-2 py-0.5 md:py-1">Needs Attention</Badge>
+                <div className="flex items-center gap-1 text-[8px] md:text-[9px] font-bold text-muted-foreground/60 uppercase tracking-widest">
+                  <div className="w-1 h-1 rounded-full bg-destructive animate-ping" /> Alert Active
+                </div>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-12">
+      <div className="grid lg:grid-cols-2 gap-8 md:gap-12">
         {/* Missing Reports */}
-        <div className="space-y-8">
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-3">
-               <h3 className="text-2xl font-black tracking-tight text-[#020101] dark:text-white">Missing Reports</h3>
-               <Badge className="bg-secondary text-muted-foreground border-none rounded-lg font-black text-[10px] px-2.5 py-1">{missingMembers.length} People</Badge>
+        <div className="space-y-10">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-2">
+            <div className="flex items-center gap-3 md:gap-4">
+               <h3 className="text-xl md:text-2xl font-black tracking-tight text-foreground">Missing Updates</h3>
+               <div className="bg-secondary/40 px-2.5 py-1 rounded-lg border border-border/10">
+                 <span className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-widest">{missingMembers.length} Pending</span>
+               </div>
             </div>
-            <Button variant="ghost" asChild className="text-xs font-black text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors">
-              <Link href="/reports">View All History</Link>
+            <Button variant="ghost" asChild className="text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] hover:text-primary transition-all group px-0 sm:px-4">
+              <Link href="/reports" className="flex items-center gap-2">
+                Archive <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              </Link>
             </Button>
           </div>
-          <Card className="border-none bg-white dark:bg-[#020101] rounded-[2.5rem] shadow-lg overflow-hidden">
-            <div className="divide-y divide-border/40">
+          <Card className="border-none bg-card/40 backdrop-blur-md rounded-[1.5rem] md:rounded-[2.5rem] shadow-xl overflow-hidden blueprint-bg">
+            <div className="divide-y divide-border/10">
               {missingMembers.length > 0 ? missingMembers.map((member: any) => (
-                <div key={member.user_id} className="p-6 flex items-center justify-between group hover:bg-secondary/20 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12 rounded-2xl">
-                      <AvatarImage src={member.profiles?.avatar_url} />
-                      <AvatarFallback className="rounded-2xl font-black bg-secondary">{member.profiles?.full_name?.charAt(0)}</AvatarFallback>
-                    </Avatar>
+                <div key={member.user_id} className="p-6 md:p-8 flex items-center justify-between group hover:bg-primary/5 transition-all">
+                  <div className="flex items-center gap-4 md:gap-6">
+                    <div className="relative">
+                      <Avatar className="h-10 w-10 md:h-14 md:w-14 rounded-xl md:rounded-2xl ring-2 ring-border/10 transition-all group-hover:ring-primary/20">
+                        <AvatarImage src={member.profiles?.avatar_url} />
+                        <AvatarFallback className="rounded-xl md:rounded-2xl font-black bg-secondary/80 text-muted-foreground">{member.profiles?.full_name?.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <div className="absolute -bottom-1 -right-1 w-3 h-3 md:w-4 md:h-4 bg-background rounded-lg border border-border flex items-center justify-center">
+                        <div className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full bg-muted-foreground/40" />
+                      </div>
+                    </div>
                     <div>
-                      <p className="text-base font-black text-[#020101] dark:text-white">{member.profiles?.full_name}</p>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Last active: 4h ago</p>
+                      <p className="text-sm md:text-base font-black text-foreground tracking-tight">{member.profiles?.full_name}</p>
+                      <p className="text-[8px] md:text-[10px] font-black text-muted-foreground/40 uppercase tracking-[0.3em] mt-0.5 md:mt-1">Status: Pending Update</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl bg-secondary/30 hover:bg-[#F6823A] hover:text-white transition-all opacity-0 group-hover:opacity-100">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-12 w-12 rounded-2xl bg-primary/5 text-primary hover:bg-primary hover:text-primary-foreground transition-all opacity-0 group-hover:opacity-100 shadow-[0_0_15px_rgba(76,215,246,0.3)]"
+                  >
                     <Send className="w-5 h-5" />
                   </Button>
                 </div>
               )) : (
-                <div className="p-20 text-center space-y-4">
-                  <div className="bg-emerald-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="w-8 h-8 text-emerald-500" />
+                <div className="p-24 text-center space-y-6">
+                  <div className="bg-primary/10 w-20 h-20 rounded-[1.5rem] flex items-center justify-center mx-auto shadow-[0_0_30px_rgba(76,215,246,0.2)]">
+                    <CheckCircle2 className="w-10 h-10 text-primary" />
                   </div>
-                  <p className="text-muted-foreground font-bold">Everyone has checked in!</p>
+                  <div className="space-y-2">
+                    <p className="text-foreground font-black text-xl tracking-tight uppercase">All Good</p>
+                    <p className="text-muted-foreground/60 text-xs font-bold uppercase tracking-widest">All team members have submitted their updates today.</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -199,47 +236,52 @@ export default function DashboardPage() {
         </div>
 
         {/* Blockers at a Glance */}
-        <div className="space-y-8">
+        <div className="space-y-10">
           <div className="flex items-center justify-between px-2">
-            <h3 className="text-2xl font-black tracking-tight text-[#020101] dark:text-white">Blockers at a Glance</h3>
-            <Button variant="ghost" asChild className="text-xs font-black text-muted-foreground uppercase tracking-widest hover:text-primary transition-colors">
-              <Link href="/reports">View All History</Link>
+            <h3 className="text-2xl font-black tracking-tight text-foreground">Critical Blockers</h3>
+            <Button variant="ghost" asChild className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] hover:text-primary transition-all group">
+              <Link href="/reports" className="flex items-center gap-2">
+                History <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+              </Link>
             </Button>
           </div>
           <div className="space-y-6">
             {reportsWithBlockers.length > 0 ? reportsWithBlockers.map((report: any) => (
-              <Card key={report.id} className="border-l-4 border-l-rose-500 border-y-0 border-r-0 bg-white dark:bg-[#020101] rounded-[2rem] shadow-lg overflow-hidden group">
-                <CardContent className="p-8 space-y-6">
+              <Card key={report.id} className="border-l-4 border-l-destructive border-y-0 border-r-0 bg-card/60 backdrop-blur-xl rounded-[1.5rem] md:rounded-[2rem] shadow-2xl overflow-hidden group hover:bg-card/80 transition-all">
+                <CardContent className="p-6 md:p-10 space-y-6 md:space-y-8">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-10 w-10 rounded-xl">
+                    <div className="flex items-center gap-3 md:gap-4">
+                      <Avatar className="h-8 w-8 md:h-10 md:w-10 rounded-lg md:rounded-xl ring-1 ring-border/10">
                         <AvatarImage src={report.profiles?.avatar_url} />
-                        <AvatarFallback className="rounded-xl font-black bg-secondary">{report.profiles?.full_name?.charAt(0)}</AvatarFallback>
+                        <AvatarFallback className="rounded-lg md:rounded-xl font-black bg-secondary text-primary">{report.profiles?.full_name?.charAt(0)}</AvatarFallback>
                       </Avatar>
                       <div>
-                        <p className="text-sm font-black text-[#020101] dark:text-white">{report.profiles?.full_name}</p>
-                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Engineering Team</p>
+                        <p className="text-xs md:text-sm font-black text-foreground tracking-tight">{report.profiles?.full_name}</p>
+                        <p className="text-[8px] md:text-[9px] font-black text-muted-foreground/40 uppercase tracking-[0.4em]">Team Member</p>
                       </div>
                     </div>
-                    <Badge className="bg-rose-500/10 text-rose-500 border-none rounded-lg font-black text-[10px] px-2.5 py-1">Critical</Badge>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1 h-1 md:w-1.5 md:h-1.5 rounded-full bg-destructive animate-pulse" />
+                      <Badge className="bg-destructive/10 text-destructive border-none rounded-lg font-black text-[8px] md:text-[9px] uppercase tracking-widest px-2 py-0.5 md:px-2.5">Blocked</Badge>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <h4 className="text-lg font-black tracking-tight text-[#020101] dark:text-white">{report.content.blockers[0]}</h4>
-                    <p className="text-sm font-medium text-muted-foreground leading-relaxed">
-                      This blocker is affecting the critical path. Please acknowledge or resolve to unblock the team.
+                  <div className="space-y-2 md:space-y-3">
+                    <h4 className="text-lg md:text-xl font-black tracking-tighter text-foreground leading-tight uppercase">{report.content.blockers[0]}</h4>
+                    <p className="text-[10px] md:text-xs font-medium text-muted-foreground/60 leading-relaxed uppercase tracking-wide">
+                      A team member is blocked. Help them resolve the issue to maintain progress.
                     </p>
                   </div>
-                  <div className="flex gap-3">
-                    <Button variant="secondary" className="flex-1 h-12 rounded-xl font-black text-[10px] uppercase tracking-widest border border-border/50">Acknowledge</Button>
-                    <Button className="flex-1 h-12 rounded-xl bg-[#020101] dark:bg-white dark:text-[#020101] text-white font-black text-[10px] uppercase tracking-widest">Resolve Blocker</Button>
+                  <div className="flex flex-col sm:flex-row gap-3 md:gap-4 pt-2">
+                    <Button variant="secondary" className="flex-1 h-12 md:h-14 rounded-xl md:rounded-2xl font-black text-[9px] md:text-[10px] uppercase tracking-[0.3em] bg-background hover:bg-secondary/60 border border-border/10 transition-all">Acknowledge</Button>
+                    <Button className="flex-1 h-12 md:h-14 rounded-xl md:rounded-2xl bg-foreground text-background hover:opacity-90 font-black text-[9px] md:text-[10px] uppercase tracking-[0.3em] transition-all shadow-xl">Resolve</Button>
                   </div>
                 </CardContent>
               </Card>
             )) : (
-              <div className="bg-emerald-500/5 rounded-[2.5rem] p-16 text-center border-2 border-dashed border-emerald-500/20">
-                <CheckCircle2 className="w-12 h-12 text-emerald-500/40 mx-auto mb-4" />
-                <p className="text-emerald-600 dark:text-emerald-400 font-black text-xl tracking-tight">Zero active blockers</p>
-                <p className="text-emerald-600/60 dark:text-emerald-400/60 font-medium text-sm mt-1">The team is moving at full speed.</p>
+              <div className="bg-primary/5 rounded-[3rem] p-24 text-center border border-dashed border-primary/20 blueprint-bg">
+                <Target className="w-16 h-16 text-primary/20 mx-auto mb-6" />
+                <p className="text-primary font-black text-2xl tracking-tighter uppercase mb-2">No Active Blockers</p>
+                <p className="text-muted-foreground/40 font-bold text-xs uppercase tracking-[0.3em]">No team members are currently blocked.</p>
               </div>
             )}
           </div>
@@ -247,28 +289,40 @@ export default function DashboardPage() {
       </div>
 
       {/* Activity Timeline */}
-      <div className="space-y-8">
+      <div className="space-y-10">
         <div className="flex items-center justify-between px-2">
-           <h3 className="text-2xl font-black tracking-tight text-[#020101] dark:text-white">Daily Activity Timeline</h3>
+           <h3 className="text-2xl font-black tracking-tight text-foreground">Recent Updates</h3>
+           <div className="flex items-center gap-2 px-3 py-1.5 bg-secondary/40 rounded-full border border-border/10">
+             <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+             <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground">Live Feed</span>
+           </div>
         </div>
-        <Card className="border-none bg-white dark:bg-[#020101] rounded-[3rem] shadow-lg p-10">
+        <Card className="border-none bg-card/30 backdrop-blur-md rounded-[3rem] shadow-2xl p-12 blueprint-bg">
            <ReportList reports={teamReports || []} />
         </Card>
       </div>
 
-      {/* Floating Form Toggle (from design) */}
+      {/* Floating Form Toggle */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-[#020101]/80 backdrop-blur-xl animate-in fade-in duration-300">
-          <div className="max-w-3xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar">
-            <ReportForm teamId={teamId} />
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="fixed top-10 right-10 h-14 w-14 rounded-full bg-white/10 text-white hover:bg-white/20"
-              onClick={() => setIsFormOpen(false)}
-            >
-              <Plus className="w-8 h-8 rotate-45" />
-            </Button>
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-background/90 backdrop-blur-2xl animate-in fade-in duration-500">
+          <div className="max-w-5xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar bg-card/95 backdrop-blur-3xl rounded-[2.5rem] shadow-2xl border border-border/50">
+            <div className="p-6 md:p-8 lg:p-10">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h2 className="text-3xl font-black tracking-tighter text-foreground uppercase">Submit Update</h2>
+                  <p className="text-primary text-[10px] font-black tracking-[0.4em] uppercase mt-1">Daily Standup</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-14 w-14 rounded-[1.5rem] bg-secondary/40 text-foreground hover:bg-destructive hover:text-destructive-foreground transition-all hover:rotate-90"
+                  onClick={() => setIsFormOpen(false)}
+                >
+                  <Plus className="w-8 h-8 rotate-45" />
+                </Button>
+              </div>
+              <ReportForm teamId={teamId} />
+            </div>
           </div>
         </div>
       )}

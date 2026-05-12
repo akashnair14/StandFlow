@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-heading);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -39,67 +39,75 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  --radius-sm: calc(var(--radius) * 0.5);
+  --radius-md: calc(var(--radius) * 0.75);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: calc(var(--radius) * 1.25);
+  --radius-2xl: calc(var(--radius) * 1.5);
+  --radius-3xl: calc(var(--radius) * 2);
+  --radius-4xl: calc(var(--radius) * 2.5);
 }
 
 :root {
-  --background: oklch(0.98 0.02 45); /* Birth of a Star inspired */
-  --foreground: oklch(0.2 0.02 45);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.02 45);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.2 0.02 45);
-  --primary: oklch(0.7 0.22 45); /* Peach Fury inspired */
-  --primary-foreground: oklch(0.99 0.01 45);
-  --secondary: oklch(0.92 0.06 45); /* Desert Mesa inspired */
-  --secondary-foreground: oklch(0.2 0.02 45);
-  --muted: oklch(0.92 0.06 45);
-  --muted-foreground: oklch(0.45 0.04 45);
-  --accent: oklch(0.8 0.12 45 / 30%); /* Priceless Coral inspired */
-  --accent-foreground: oklch(0.3 0.1 45);
-  --destructive: oklch(0.6 0.2 25);
-  --border: oklch(0.9 0.04 45);
-  --input: oklch(0.9 0.04 45);
-  --ring: oklch(0.7 0.22 45 / 50%);
-  --radius: 1.5rem;
+  --background: #ffffff;
+  --foreground: #09090b;
+  --card: #ffffff;
+  --card-foreground: #09090b;
+  --popover: #ffffff;
+  --popover-foreground: #09090b;
+  --primary: #f97316; /* Vibrant Orange */
+  --primary-foreground: #ffffff;
+  --secondary: #f4f4f5;
+  --secondary-foreground: #18181b;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+  --accent: #f59e0b; /* Bright Amber */
+  --accent-foreground: #ffffff;
+  --destructive: #ef4444;
+  --border: #e4e4e7;
+  --input: #e4e4e7;
+  --ring: #f9731680;
+  --radius: 1rem;
+  --font-heading: "Manrope", "Geist", sans-serif;
+  --font-sans: "Inter", "Geist", sans-serif;
 }
 
 .dark {
-  --background: oklch(0.12 0.01 250); /* Vantablack inspired */
-  --foreground: oklch(0.95 0.02 45);
-  --card: oklch(0.16 0.01 250);
-  --card-foreground: oklch(0.95 0.02 45);
-  --popover: oklch(0.16 0.01 250);
-  --popover-foreground: oklch(0.95 0.02 45);
-  --primary: oklch(0.75 0.18 45);
-  --primary-foreground: oklch(0.12 0.01 250);
-  --secondary: oklch(0.22 0.02 250);
-  --secondary-foreground: oklch(0.95 0.02 45);
-  --muted: oklch(0.22 0.02 250);
-  --muted-foreground: oklch(0.65 0.04 45);
-  --accent: oklch(0.3 0.08 45 / 40%);
-  --accent-foreground: oklch(0.9 0.05 45);
-  --destructive: oklch(0.5 0.2 25);
-  --border: oklch(0.25 0.02 250);
-  --input: oklch(0.25 0.02 250);
-  --ring: oklch(0.75 0.18 45 / 50%);
+  --background: #09090b; 
+  --foreground: #fafafa;
+  --card: #18181b; 
+  --card-foreground: #fafafa;
+  --popover: #18181b;
+  --popover-foreground: #fafafa;
+  --primary: #fb923c; /* Lighter Orange */
+  --primary-foreground: #431407;
+  --secondary: #27272a;
+  --secondary-foreground: #fafafa;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #fbbf24; /* Lighter Amber */
+  --accent-foreground: #78350f;
+  --destructive: #f87171;
+  --border: #27272a; 
+  --input: #27272a;
+  --ring: #fb923c80;
 }
 
 @layer utilities {
   .glass {
-    @apply bg-white/60 dark:bg-black/40 backdrop-blur-md border border-white/20 dark:border-white/5;
+    @apply bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border border-slate-200 dark:border-slate-800;
   }
   .glass-card {
-    @apply bg-white/40 dark:bg-zinc-950/40 backdrop-blur-2xl border border-white/20 dark:border-white/5 shadow-2xl;
+    @apply bg-white dark:bg-slate-900 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 shadow-sm;
   }
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-linear-to-br from-[#F6823A] via-[#E6AA89] to-[#7C686C] dark:from-[#F6823A] dark:via-[#E6AA89] dark:to-[#7C686C];
+    @apply bg-clip-text text-transparent bg-linear-to-br from-[#1e293b] via-[#334155] to-[#475569] dark:from-white dark:via-slate-200 dark:to-slate-400;
+  }
+  .tactical-glow {
+    @apply shadow-[0_4px_12px_rgba(0,0,0,0.05)];
+  }
+  .blueprint-bg {
+    background-image: none;
   }
 }
 
@@ -109,11 +117,11 @@
   }
   body {
     @apply bg-background text-foreground;
-    background-image: radial-gradient(circle at top right, oklch(0.7 0.22 45 / 0.05), transparent 40%),
-                      radial-gradient(circle at bottom left, oklch(0.5 0.08 340 / 0.05), transparent 40%);
+    background-image: radial-gradient(circle at top right, rgba(76, 215, 246, 0.03), transparent 40%),
+                      radial-gradient(circle at bottom left, rgba(59, 130, 246, 0.03), transparent 40%);
   }
-  html {
-    @apply font-sans;
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-heading tracking-tight;
   }
 }
 
@@ -158,4 +166,38 @@
 
 .animate-reveal {
   animation: reveal 0.8s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+/* Tactical Command Center Utilities */
+@layer utilities {
+  .custom-scrollbar::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(76, 215, 246, 0.3);
+  }
+  
+  .blueprint-bg {
+    background-size: 40px 40px;
+    background-image: 
+      linear-gradient(to right, rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  }
+
+  .perspective-1000 {
+    perspective: 1000px;
+  }
 }

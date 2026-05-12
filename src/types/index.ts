@@ -1,9 +1,10 @@
-export type Role = 'manager' | 'employee';
+export type Role = 'manager' | 'team_leader' | 'team_member';
 
 export interface Profile {
   id: string;
   full_name: string | null;
   avatar_url: string | null;
+  phone: string | null;
   role: Role;
   updated_at: string;
 }

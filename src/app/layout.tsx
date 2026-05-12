@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Manrope, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-sans",
+  subsets: ["latin"],
+});
+
+const manrope = Manrope({
+  variable: "--font-heading",
   subsets: ["latin"],
 });
 
@@ -15,8 +20,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "StandFlow | Async Daily Standups",
-  description: "Simple, fast, and clean async daily standups for remote teams.",
+  title: "StandFlow | Professional Workspace",
+  description: "Seamless team synchronization and daily standup updates for high-performing teams.",
 };
 
 export default function RootLayout({
@@ -27,7 +32,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
+        className={`${inter.variable} ${manrope.variable} ${geistMono.variable} antialiased min-h-screen bg-background text-foreground`}
       >
         <ThemeProvider
           attribute="class"

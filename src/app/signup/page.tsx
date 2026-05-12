@@ -15,6 +15,7 @@ function SignupForm() {
   const [isLoading, setIsLoading] = useState(false)
   const searchParams = useSearchParams()
   const teamId = searchParams.get('team_id')
+  const role = searchParams.get('role')
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -105,7 +106,9 @@ function SignupForm() {
         <div className="w-full max-w-md space-y-12">
           <div className="space-y-3">
             <h1 className="text-5xl font-black tracking-tighter text-[#020101] dark:text-white">Join the Flow</h1>
-            <p className="text-lg font-medium text-muted-foreground">Get started with 14 days of premium for free.</p>
+            <p className="text-lg font-medium text-muted-foreground">
+              {role ? `Join as a ${role.replace('_', ' ')}` : 'Get started with 14 days of premium for free.'}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-8">
@@ -143,6 +146,9 @@ function SignupForm() {
               </div>
               {teamId && (
                 <input type="hidden" name="team_id" value={teamId} />
+              )}
+              {role && (
+                <input type="hidden" name="role" value={role} />
               )}
             </div>
 

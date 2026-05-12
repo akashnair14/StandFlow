@@ -3,7 +3,8 @@ create table profiles (
   id uuid references auth.users on delete cascade not null primary key,
   full_name text,
   avatar_url text,
-  role text check (role in ('manager', 'employee')) default 'employee',
+  phone text,
+  role text check (role in ('manager', 'team_leader', 'team_member')) default 'team_member',
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -19,7 +20,7 @@ create table teams (
 create table team_members (
   team_id uuid references teams on delete cascade not null,
   user_id uuid references auth.users on delete cascade not null,
-  role text check (role in ('manager', 'employee')) default 'employee',
+  role text check (role in ('manager', 'team_leader', 'team_member')) default 'team_member',
   joined_at timestamp with time zone default timezone('utc'::text, now()) not null,
   primary key (team_id, user_id)
 );
@@ -84,8 +85,14 @@ create policy "Users can insert own reports." on reports
 create function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name, avatar_url)
-  values (new.id, new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'avatar_url');
+  insert into public.profiles (id, full_name, avatar_url, phone, role)
+  values (
+    new.id, 
+    new.raw_user_meta_data->>'full_name', 
+    new.raw_user_meta_data->>'avatar_url',
+    new.raw_user_meta_data->>'phone',
+    coalesce(new.raw_user_meta_data->>'role', 'team_member')
+  );
   return new;
 end;
 $$ language plpgsql security definer;

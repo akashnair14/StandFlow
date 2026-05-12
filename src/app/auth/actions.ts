@@ -38,6 +38,14 @@ export async function signup(formData: FormData) {
       return { error: 'All fields are required' }
     }
 
+    const role = formData.get('role') as string
+    
+    // Determine initial role: 
+    // 1. If role is explicitly provided (via invite), use it.
+    // 2. If teamId is provided (joining a team), default to team_member.
+    // 3. If neither (new signup), default to manager.
+    const initialRole = role || (teamId ? 'team_member' : 'manager')
+
     // Attempt signup
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -45,6 +53,8 @@ export async function signup(formData: FormData) {
       options: {
         data: {
           full_name: fullName,
+          role: initialRole,
+          team_id: teamId, // Store team_id in metadata as well for the trigger or backup
         },
       },
     })
@@ -58,37 +68,55 @@ export async function signup(formData: FormData) {
     if (data.user) {
       const adminSupabase = await createAdminClient()
       
-      if (teamId) {
-        // Join existing team
-        const { error: teamError } = await adminSupabase
+      // Prioritize teamId from form, fallback to metadata (for invited users)
+      const finalTeamId = teamId || data.user.user_metadata?.team_id
+      
+      if (finalTeamId) {
+        // Check if already in this team to avoid unique constraint errors
+        const { data: existingMember } = await adminSupabase
           .from('team_members')
-          .insert({
-            team_id: teamId,
-            user_id: data.user.id,
-            role: 'employee'
-          })
-        if (teamError) console.error('Join Team Error:', teamError.message)
-      } else {
-        // Create a new team for the solo user
-        const { data: newTeam, error: createTeamError } = await adminSupabase
-          .from('teams')
-          .insert({
-            name: `${fullName.split(' ')[0]}'s Team`,
-            owner_id: data.user.id
-          })
-          .select()
+          .select('team_id')
+          .eq('team_id', finalTeamId)
+          .eq('user_id', data.user.id)
           .maybeSingle()
 
-        if (createTeamError) {
-          console.error('Create Team Error:', createTeamError.message)
-        } else if (newTeam) {
-          // Add as manager to their own team
-          const { error: memberError } = await adminSupabase.from('team_members').insert({
-            team_id: newTeam.id,
-            user_id: data.user.id,
-            role: 'manager'
-          })
-          if (memberError) console.error('Add Manager Error:', memberError.message)
+        if (!existingMember) {
+          const { error: teamError } = await adminSupabase
+            .from('team_members')
+            .insert({
+              team_id: finalTeamId,
+              user_id: data.user.id,
+              role: data.user.user_metadata?.role || 'team_member'
+            })
+          if (teamError) console.error('Join Team Error:', teamError.message)
+        }
+      } else {
+        // Only create a new team if they aren't joining one and aren't already in one
+        const { data: existingAnyMember } = await adminSupabase
+          .from('team_members')
+          .select('team_id')
+          .eq('user_id', data.user.id)
+          .maybeSingle()
+
+        if (!existingAnyMember) {
+          const { data: newTeam, error: createTeamError } = await adminSupabase
+            .from('teams')
+            .insert({
+              name: `${fullName.split(' ')[0]}'s Team`,
+              owner_id: data.user.id
+            })
+            .select()
+            .maybeSingle()
+
+          if (createTeamError) {
+            console.error('Create Team Error:', createTeamError.message)
+          } else if (newTeam) {
+            await adminSupabase.from('team_members').insert({
+              team_id: newTeam.id,
+              user_id: data.user.id,
+              role: 'manager'
+            })
+          }
         }
       }
     }
