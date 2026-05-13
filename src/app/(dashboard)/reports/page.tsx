@@ -7,92 +7,44 @@ import { useEffect, useState, useMemo } from 'react'
 import { Filter, Search, Target, Activity, Zap, Radio, Plus } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { ReportForm } from '@/components/reports/report-form'
+import { useRealtimeReports } from '@/lib/supabase/hooks'
 
 export default function ReportsPage() {
-  const [reports, setReports] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [isFormOpen, setIsFormOpen] = useState(false)
   const [profile, setProfile] = useState<any>(null)
-  const [teamId, setTeamId] = useState<string>('')
+  const [teamIds, setTeamIds] = useState<string[]>([])
   const supabase = createClient()
 
-  const fetchReports = async () => {
-    try {
+  const { reports, loading } = useRealtimeReports(teamIds.length > 0 ? teamIds : null)
+
+  useEffect(() => {
+    async function fetchContext() {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        setLoading(false)
-        return
-      }
+      if (!user) return
 
       const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
       setProfile(profileData)
 
-      // 1. Check memberships
       let { data: memberships } = await supabase
         .from('team_members')
         .select('team_id')
         .eq('user_id', user.id)
       
-      let teamIds = memberships?.map(m => m.team_id) || []
+      let ids = memberships?.map(m => m.team_id) || []
 
-      // 2. If no memberships, check if they OWN any teams (Team Lead/Manager role)
-      if (teamIds.length === 0) {
+      if (ids.length === 0) {
         const { data: ownedTeams } = await supabase
           .from('teams')
           .select('id')
           .eq('owner_id', user.id)
         
-        teamIds = ownedTeams?.map(t => t.id) || []
-      }
-      
-      if (teamIds.length === 0) {
-        setLoading(false)
-        return
+        ids = ownedTeams?.map(t => t.id) || []
       }
 
-      setTeamId(teamIds[0] || '')
-
-      const { data: teamReports } = await supabase.from('reports')
-        .select('*, profiles(*)')
-        .in('team_id', teamIds)
-        .eq('date', new Date().toISOString().split('T')[0])
-        .order('created_at', { ascending: false })
-
-      setReports(teamReports || [])
-    } catch (error) {
-      console.error('Failed to fetch reports:', error)
-    } finally {
-      setLoading(false)
+      setTeamIds(ids)
     }
-  }
 
-  useEffect(() => {
-    fetchReports()
-
-    const handleOpenForm = () => setIsFormOpen(true)
-    const handleCloseForm = () => setIsFormOpen(false)
-    window.addEventListener('open-report-form', handleOpenForm)
-    window.addEventListener('close-report-form', handleCloseForm)
-
-    // Real-time Operational Pulse
-    const channel = supabase
-      .channel('reports-stream')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'reports' },
-        () => {
-          fetchReports()
-        }
-      )
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-      window.removeEventListener('open-report-form', handleOpenForm)
-      window.removeEventListener('close-report-form', handleCloseForm)
-    }
+    fetchContext()
   }, [supabase])
 
   const filteredReports = useMemo(() => {
@@ -208,31 +160,6 @@ export default function ReportsPage() {
           </div>
         )}
       </div>
-
-      {/* Floating Form Toggle */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-background/90 backdrop-blur-2xl animate-in fade-in duration-500">
-          <div className="max-w-5xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar bg-card/95 backdrop-blur-3xl rounded-[2.5rem] shadow-2xl border border-border/50">
-            <div className="p-6 md:p-8 lg:p-10">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-3xl font-black tracking-tighter text-foreground uppercase">Submit Update</h2>
-                  <p className="text-primary text-[10px] font-black tracking-[0.4em] uppercase mt-1">Daily Standup</p>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-14 w-14 rounded-[1.5rem] bg-secondary/40 text-foreground hover:bg-destructive hover:text-destructive-foreground transition-all hover:rotate-90"
-                  onClick={() => setIsFormOpen(false)}
-                >
-                  <Plus className="w-8 h-8 rotate-45" />
-                </Button>
-              </div>
-              <ReportForm teamId={teamId} />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

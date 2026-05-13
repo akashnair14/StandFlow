@@ -114,7 +114,23 @@ export async function inviteMember(email: string, teamId: string, role: 'manager
     return { error: error.message }
   }
 
-  return { success: true, message: `Real invitation sent to ${email} via Supabase Auth!` }
+  // 6. Automatically add to team_members table so they are "assigned" even before they confirm email
+  if (data.user) {
+    const { error: joinError } = await adminClient
+      .from('team_members')
+      .insert({
+        team_id: teamId,
+        user_id: data.user.id,
+        role: role
+      })
+    
+    if (joinError) {
+      console.error('Join Error after invite:', joinError.message)
+      // We don't return error here because the invitation was still sent successfully
+    }
+  }
+
+  return { success: true, message: `Invitation sent to ${email}! They will be automatically assigned to your team upon joining.` }
 }
 
 export async function createTeamAction() {

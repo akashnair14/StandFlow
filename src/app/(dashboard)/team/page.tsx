@@ -5,14 +5,29 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Card, CardContent } from '@/components/ui/card'
 import { useEffect, useState, useRef } from 'react'
-import { Users, Mail, MessageSquare, MoreHorizontal, ShieldPlus, Loader2, Zap, Activity, LayoutGrid, GitGraph, Target, ShieldCheck, Cpu } from 'lucide-react'
+import { Users, Mail, MessageSquare, MoreHorizontal, ShieldPlus, Loader2, Zap, Activity, LayoutGrid, GitGraph, Target, ShieldCheck, Cpu, Globe, Search } from 'lucide-react'
+import { SlackIcon, LinkedinIcon, TwitterIcon, GithubIcon, WhatsAppIcon } from '@/components/ui/brand-icons'
 import { Button } from '@/components/ui/button'
 import { InviteMemberModal } from '@/components/team/invite-member-modal'
 import { createTeamAction } from '@/app/(dashboard)/team/actions'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { ViewProfileModal } from '@/components/team/view-profile-modal'
+
 
 import { getTeamDataBypass } from './bypass-actions'
+
+const ensureAbsoluteUrl = (url?: string) => {
+  if (!url) return ''
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  return `https://${url}`
+}
 
 const supabase = createClient()
 
@@ -28,6 +43,10 @@ export default function TeamPage() {
   const [allTeams, setAllTeams] = useState<any[]>([])
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [view, setView] = useState<'grid' | 'flow'>('grid')
+  const [selectedProfile, setSelectedProfile] = useState<any | null>(null)
+  const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [activeRoleFilter, setActiveRoleFilter] = useState<'all' | 'manager' | 'team_leader' | 'team_member'>('all')
+  const [searchQuery, setSearchQuery] = useState('')
   const containerRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
@@ -53,6 +72,7 @@ export default function TeamPage() {
 
       setAllTeams(result.teams || [])
       setMembers(result.members || [])
+      setTeamId(result.currentTeamId || null)
       setTeamName(result.currentTeam?.name || 'My Team')
       setNewTeamName(result.currentTeam?.name || 'My Team')
 
@@ -100,6 +120,10 @@ export default function TeamPage() {
 
   useEffect(() => {
     fetchTeam()
+
+    const handleUpdate = () => fetchTeam()
+    window.addEventListener('profile-updated', handleUpdate)
+    return () => window.removeEventListener('profile-updated', handleUpdate)
   }, [])
 
 
@@ -148,24 +172,97 @@ export default function TeamPage() {
             </p>
           </div>
           
-          <div className="flex flex-wrap items-center gap-6">
+          <div className="flex flex-wrap items-center gap-4">
             {role === 'manager' && allTeams.length > 1 && (
-              <div className="flex items-center gap-4 bg-card/40 backdrop-blur-xl p-3 rounded-[2rem] shadow-2xl border border-border/10 blueprint-bg">
-                <span className="text-[9px] font-black uppercase tracking-[0.4em] text-primary/40 pl-4">Switch Team</span>
-                <select 
-                  value={teamId || ''} 
-                  onChange={(e) => fetchTeam(e.target.value)}
-                  className="bg-secondary/50 border border-primary/10 rounded-2xl px-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] focus:ring-4 ring-primary/5 outline-none cursor-pointer text-foreground min-w-[200px]"
-                >
-                  {allTeams.map(t => (
-                    <option key={t.id} value={t.id}>{t.name.toUpperCase()}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:flex items-center gap-3 w-full">
+                {allTeams.map(t => (
+                  <button
+                    key={t.id}
+                    onClick={() => fetchTeam(t.id)}
+                    className={cn(
+                      "flex-1 lg:flex-none px-6 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all duration-500 border text-center whitespace-nowrap",
+                      teamId === t.id 
+                        ? "bg-primary/10 border-primary text-primary shadow-[0_0_30px_rgba(76,215,246,0.15)]" 
+                        : "bg-card/40 border-border/10 text-muted-foreground/40 hover:text-foreground hover:border-primary/50"
+                    )}
+                  >
+                    {t.name}
+                  </button>
+                ))}
               </div>
+            )}
+            {role === 'manager' && (
+              <Button 
+                onClick={handleCreateTeam} 
+                disabled={creatingTeam} 
+                className="h-10 md:h-12 px-6 md:px-8 rounded-xl md:rounded-2xl bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground font-black uppercase tracking-[0.2em] text-[8px] md:text-[10px] gap-2 border border-primary/20 shadow-xl transition-all active:scale-95"
+              >
+                {creatingTeam ? <Loader2 className="w-4 h-4 animate-spin" /> : <><ShieldPlus className="w-4 h-4" /> Create Team</>}
+              </Button>
             )}
             {teamId && role !== 'team_member' && <InviteMemberModal teamId={teamId} role={role} />}
           </div>
         </div>
+
+        {teamId && (
+          <div className="flex flex-col xl:flex-row items-center justify-between gap-6 py-6 border-y border-primary/5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full xl:w-auto">
+              {[
+                { id: 'all', label: 'All Unit', icon: Users },
+                { id: 'manager', label: 'Managers', icon: ShieldPlus },
+                { id: 'team_leader', label: 'Leads', icon: Target },
+                { id: 'team_member', label: 'Members', icon: Zap }
+              ].map((filter) => (
+                <button
+                  key={filter.id}
+                  onClick={() => setActiveRoleFilter(filter.id as any)}
+                  className={cn(
+                    "flex items-center justify-center gap-3 px-6 py-4 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 border",
+                    activeRoleFilter === filter.id 
+                      ? "bg-primary/10 border-primary text-primary shadow-[0_0_30px_rgba(76,215,246,0.15)]" 
+                      : "bg-card/40 border-border/10 text-muted-foreground/40 hover:text-foreground hover:border-primary/50"
+                  )}
+                >
+                  <filter.icon className="w-3.5 h-3.5" />
+                  {filter.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex-1 max-w-md w-full relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/20 group-focus-within:text-primary transition-colors" />
+              <input 
+                placeholder="Identify team member..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-card/20 backdrop-blur-3xl border border-primary/5 rounded-full pl-12 pr-6 py-3 text-[10px] font-black uppercase tracking-[0.2em] focus:ring-4 ring-primary/5 outline-none transition-all placeholder:text-muted-foreground/10"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 bg-card/40 backdrop-blur-3xl p-1.5 rounded-2xl border border-border/10 shadow-xl">
+              <button 
+                onClick={() => setView('grid')}
+                className={cn(
+                  "px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 flex items-center gap-2",
+                  view === 'grid' ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground/40 hover:text-foreground"
+                )}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                Directory
+              </button>
+              <button 
+                onClick={() => setView('flow')}
+                className={cn(
+                  "px-6 py-3 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 flex items-center gap-2",
+                  view === 'flow' ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground/40 hover:text-foreground"
+                )}
+              >
+                <GitGraph className="w-3.5 h-3.5" />
+                Tactical Flow
+              </button>
+            </div>
+          </div>
+        )}
 
         {teamId && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
@@ -191,50 +288,20 @@ export default function TeamPage() {
           </div>
         )}
 
-        {/* View Switcher: Tactical Toggle */}
-        {teamId && (
-          <div className="flex justify-center py-8">
-            <div className="relative p-1 bg-card/60 backdrop-blur-3xl rounded-full border border-primary/10 shadow-2xl flex items-center blueprint-bg">
-              <div 
-                className={cn(
-                  "absolute h-[40px] md:h-[52px] rounded-full bg-primary shadow-[0_0_30px_rgba(76,215,246,0.4)] transition-all duration-700 ease-[cubic-bezier(0.23,1,0.32,1)]",
-                  view === 'grid' ? 'w-24 md:w-44 translate-x-0' : 'w-32 md:w-52 translate-x-24 md:translate-x-44'
-                )}
-              />
-              <button 
-                onClick={() => setView('grid')}
-                className={cn(
-                  "relative z-10 w-24 md:w-44 h-10 md:h-12 flex items-center justify-center gap-2 md:gap-3 font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] transition-colors duration-500",
-                  view === 'grid' ? 'text-primary-foreground' : 'text-muted-foreground/40 hover:text-foreground'
-                )}
-              >
-                <LayoutGrid className="w-3 h-3 md:w-4 md:h-4" />
-                Directory
-              </button>
-              <button 
-                onClick={() => setView('flow')}
-                className={cn(
-                  "relative z-10 w-32 md:w-52 h-10 md:h-12 flex items-center justify-center gap-2 md:gap-3 font-black text-[8px] md:text-[10px] uppercase tracking-[0.2em] md:tracking-[0.3em] transition-colors duration-500",
-                  view === 'flow' ? 'text-primary-foreground' : 'text-muted-foreground/40 hover:text-foreground'
-                )}
-              >
-                <GitGraph className="w-3 h-3 md:w-4 md:h-4" />
-                Flow
-              </button>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Content Switcher */}
       {view === 'grid' ? (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 2xl:grid-cols-3 gap-6 md:gap-8">
           {loading ? (
             [1, 2, 3, 4, 5, 6, 7, 8].map(i => (
               <div key={i} className="h-80 bg-primary/5 rounded-[3rem] border border-primary/10 animate-pulse blueprint-bg" />
             ))
           ) : members.length > 0 ? (
-            members.map((member) => (
+            members
+              .filter(m => activeRoleFilter === 'all' || m.role === activeRoleFilter)
+              .filter(m => !searchQuery || m.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || m.profiles?.email?.toLowerCase().includes(searchQuery.toLowerCase()))
+              .map((member) => (
               <Card key={member.user_id} className={cn(
                 "group relative border-none bg-card/40 backdrop-blur-xl rounded-[3rem] shadow-2xl overflow-hidden transition-all duration-700 hover:-translate-y-3 border-2 tactical-glow blueprint-bg",
                 member.user_id === currentUserId ? 'border-primary/40 ring-4 ring-primary/5' : 'border-border/10'
@@ -242,91 +309,125 @@ export default function TeamPage() {
                 {/* Tactical Status Strip */}
                 <div className={cn(
                   "absolute top-0 left-0 w-full h-2 shadow-lg",
+                  "absolute top-0 left-0 w-full h-1.5 shadow-lg",
                   member.role === 'manager' ? 'bg-primary' :
                   member.role === 'team_leader' ? 'bg-blue-500' :
                   'bg-emerald-500'
                 )} />
 
-                <CardContent className="p-8 space-y-8">
-                  <div className="flex items-start justify-between">
-                    <div className="relative">
+                <CardContent className="p-4 md:p-6">
+                  <div className="flex flex-col md:flex-row md:items-center gap-6">
+                    {/* Left: Avatar & Status */}
+                    <div className="relative shrink-0 flex justify-center md:block">
                       <div className="absolute -inset-4 bg-primary/10 blur-[30px] rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
-                      <Avatar className="h-24 w-24 rounded-[2rem] shadow-2xl ring-2 ring-primary/10 transition-all duration-700 group-hover:scale-110 group-hover:rotate-3">
+                      <Avatar className="h-20 w-20 md:h-24 md:w-24 rounded-3xl shadow-2xl ring-2 ring-primary/10 transition-all duration-700 group-hover:scale-105">
                         <AvatarImage src={member.profiles?.avatar_url} />
                         <AvatarFallback className={cn(
-                          "text-white font-black text-3xl",
+                          "text-white font-black text-2xl md:text-3xl",
                           member.role === 'manager' ? 'bg-primary' :
-                          member.role === 'team_leader' ? 'bg-blue-600' :
-                          'bg-emerald-600'
+                          member.role === 'team_leader' ? 'bg-blue-500' :
+                          'bg-emerald-500'
                         )}>
                           {member.profiles?.full_name?.charAt(0)}
                         </AvatarFallback>
                       </Avatar>
                       <div className={cn(
-                        "absolute -bottom-1 -right-1 w-6 h-6 rounded-xl border-4 border-card shadow-2xl",
-                         member.user_id === currentUserId ? 'bg-primary animate-pulse' : 'bg-emerald-500'
+                        "absolute bottom-0 right-0 md:-bottom-1 md:-right-1 w-6 h-6 rounded-full border-4 border-card flex items-center justify-center shadow-xl",
+                        member.profiles?.status === 'online' ? 'bg-emerald-500' : 'bg-muted-foreground/30'
                       )} />
                     </div>
 
-                    <div className="flex flex-col items-end gap-4">
-                      <Badge className={cn(
-                        "px-4 py-1.5 rounded-xl font-black text-[8px] uppercase tracking-[0.3em] shadow-lg border-none",
-                        member.role === 'manager' ? 'bg-primary/10 text-primary' :
-                        member.role === 'team_leader' ? 'bg-blue-500/10 text-blue-500' :
-                        'bg-emerald-500/10 text-emerald-500'
-                      )}>
-                        {member.role?.replace('_', ' ')}
-                      </Badge>
-                      <Button variant="ghost" size="icon" className="h-12 w-12 rounded-2xl bg-secondary/50 hover:bg-primary/10 hover:text-primary transition-all border border-border/10 shadow-xl">
-                        <MoreHorizontal className="w-6 h-6" />
+                    {/* Middle: Name, Role & Email Stack */}
+                    <div className="flex-1 min-w-0 text-center md:text-left space-y-2">
+                      <h3 className="text-xl md:text-2xl font-black tracking-tight text-foreground uppercase group-hover:text-primary transition-colors break-words">
+                        {member.profiles?.full_name || 'ANONYMOUS'}
+                      </h3>
+                      
+                      <div className="flex justify-center md:justify-start">
+                        <Badge variant="outline" className={cn(
+                          "rounded-lg px-3 py-1 font-black text-[8px] uppercase tracking-[0.2em] border-none shadow-sm",
+                          member.role === 'manager' ? 'bg-primary/10 text-primary' :
+                          member.role === 'team_leader' ? 'bg-blue-500/10 text-blue-500' :
+                          'bg-emerald-500/10 text-emerald-500'
+                        )}>
+                          {member.role === 'manager' ? 'Manager' : member.role === 'team_leader' ? 'Team Lead' : 'Member'}
+                        </Badge>
+                      </div>
+
+                      <div className="flex items-center justify-center md:justify-start gap-2 text-muted-foreground/40 font-bold text-[9px] uppercase tracking-widest break-all">
+                        <Mail className="w-3 h-3 shrink-0" />
+                        <span>{member.profiles?.email}</span>
+                      </div>
+
+                      {/* Social Links */}
+                      <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5 pt-2">
+                        {member.profiles?.social_links?.linkedin && (
+                          <button onClick={() => window.open(ensureAbsoluteUrl(member.profiles.social_links.linkedin), '_blank')} className="p-2 rounded-lg bg-card/60 text-primary/40 hover:text-primary hover:bg-primary/10 transition-all border border-border/10">
+                            <LinkedinIcon className="w-3 h-3" />
+                          </button>
+                        )}
+                        {member.profiles?.social_links?.github && (
+                          <button onClick={() => window.open(ensureAbsoluteUrl(member.profiles.social_links.github), '_blank')} className="p-2 rounded-lg bg-card/60 text-primary/40 hover:text-primary hover:bg-primary/10 transition-all border border-border/10">
+                            <GithubIcon className="w-3 h-3" />
+                          </button>
+                        )}
+                        {member.profiles?.social_links?.slack && (
+                          <button onClick={() => window.open(ensureAbsoluteUrl(member.profiles.social_links.slack), '_blank')} className="p-2 rounded-lg bg-card/60 text-primary/40 hover:text-primary hover:bg-primary/10 transition-all border border-border/10">
+                            <SlackIcon className="w-3 h-3" />
+                          </button>
+                        )}
+                        {member.profiles?.social_links?.whatsapp && (
+                          <button onClick={() => window.open(`https://wa.me/${member.profiles.social_links.whatsapp.replace(/\D/g, '')}`, '_blank')} className="p-2 rounded-lg bg-card/60 text-primary/40 hover:text-primary hover:bg-primary/10 transition-all border border-border/10">
+                            <WhatsAppIcon className="w-3 h-3" />
+                          </button>
+                        )}
+                        {member.user_id === currentUserId && (
+                          <span className="text-[8px] font-black text-primary px-3 py-1 bg-primary/5 rounded-full uppercase tracking-[0.3em]">You</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex md:flex-col gap-2 shrink-0">
+                      {member.user_id !== currentUserId && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="flex-1 md:w-28 h-10 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2 border-border/10 hover:bg-primary hover:text-primary-foreground transition-all shadow-xl">
+                              <MessageSquare className="w-3.5 h-3.5" />
+                              <span>Chat</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="rounded-2xl border-primary/20 bg-card/80 backdrop-blur-xl p-2 min-w-[160px] shadow-2xl blueprint-bg">
+                            {member.profiles?.social_links?.slack && (
+                              <DropdownMenuItem className="rounded-xl focus:bg-primary focus:text-primary-foreground font-black text-[10px] uppercase tracking-widest gap-3 p-3 cursor-pointer" onClick={() => window.open(ensureAbsoluteUrl(member.profiles.social_links.slack), '_blank')}>
+                                <SlackIcon className="w-4 h-4" /> Slack
+                              </DropdownMenuItem>
+                            )}
+                            {member.profiles?.social_links?.whatsapp && (
+                              <DropdownMenuItem className="rounded-xl focus:bg-[#25D366] focus:text-white font-black text-[10px] uppercase tracking-widest gap-3 p-3 cursor-pointer" onClick={() => window.open(`https://wa.me/${member.profiles.social_links.whatsapp.replace(/\D/g, '')}`, '_blank')}>
+                                <WhatsAppIcon className="w-4 h-4" /> WhatsApp
+                              </DropdownMenuItem>
+                            )}
+                            {(!member.profiles?.social_links || !Object.values(member.profiles.social_links).some(l => !!l)) && (
+                              <div className="p-4 text-[8px] font-black uppercase tracking-widest text-muted-foreground/40 text-center">
+                                No Channels
+                              </div>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+
+                      <Button 
+                        variant="outline" 
+                        onClick={() => {
+                          setSelectedProfile(member.profiles)
+                          setProfileModalOpen(true)
+                        }}
+                        className="flex-1 md:w-28 h-10 rounded-xl font-black text-[9px] uppercase tracking-widest gap-2 border-border/10 hover:bg-secondary transition-all shadow-xl"
+                      >
+                        <Activity className="w-3.5 h-3.5 text-primary" />
+                        <span>Profile</span>
                       </Button>
                     </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div className="space-y-1">
-                      <h3 className="text-2xl font-black tracking-tighter text-foreground group-hover:text-primary transition-colors uppercase font-heading leading-tight truncate">
-                        {member.profiles?.full_name || 'ANONYMOUS MEMBER'}
-                      </h3>
-                      {member.user_id === currentUserId && (
-                        <p className="text-primary/40 text-[9px] font-black uppercase tracking-[0.5em]">You</p>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-3 p-3 rounded-2xl bg-secondary/30 border border-border/10 shadow-inner group/email">
-                      <Mail className="w-3.5 h-3.5 text-muted-foreground/30 group-hover/email:text-primary transition-colors" />
-                      <p className="text-[10px] font-bold text-muted-foreground/60 truncate tracking-tight">{member.profiles?.email}</p>
-                    </div>
-
-                    <div className={cn(
-                      "flex items-center gap-3 p-4 rounded-2xl border border-primary/5 shadow-lg",
-                      member.role === 'manager' ? 'bg-primary/5' :
-                      member.role === 'team_leader' ? 'bg-blue-500/5' :
-                      'bg-emerald-500/5'
-                    )}>
-                      <div className={cn(
-                        "p-1.5 rounded-lg",
-                        member.role === 'manager' ? 'text-primary' :
-                        member.role === 'team_leader' ? 'text-blue-500' :
-                        'text-emerald-500'
-                      )}>
-                        {member.role === 'manager' ? <ShieldPlus className="w-4 h-4" /> : 
-                         member.role === 'team_leader' ? <Target className="w-4 h-4" /> : 
-                         <Zap className="w-4 h-4" />}
-                      </div>
-                      <p className="text-[9px] font-black text-muted-foreground/60 uppercase tracking-[0.4em]">
-                        {member.role === 'team_leader' ? 'Team Lead' : member.role === 'manager' ? 'Workspace Admin' : 'Team Member'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="pt-6 border-t border-border/10 grid grid-cols-2 gap-4">
-                    <Button variant="outline" className="rounded-2xl h-12 font-black text-[9px] uppercase tracking-[0.3em] gap-2 border-border/10 hover:bg-primary hover:text-primary-foreground hover:border-primary transition-all duration-500 shadow-xl">
-                      <MessageSquare className="w-4 h-4" /> Message
-                    </Button>
-                    <Button variant="outline" className="rounded-2xl h-12 font-black text-[9px] uppercase tracking-[0.3em] gap-2 border-border/10 hover:bg-secondary transition-all shadow-xl">
-                      <Activity className="w-4 h-4 text-primary" /> Profile
-                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -387,6 +488,37 @@ export default function TeamPage() {
                     <div className="pr-8 md:pr-16">
                       <p className="text-xl md:text-3xl font-black tracking-tighter text-foreground uppercase font-heading leading-tight">{manager.profiles?.full_name}</p>
                       <p className="text-[8px] md:text-[10px] font-black text-primary/40 uppercase tracking-[0.5em] mt-1 md:mt-2">Admin</p>
+                      
+                      {/* Admin Social Links */}
+                      {manager.profiles?.social_links && Object.values(manager.profiles.social_links).some(link => !!link) && (
+                        <div className="flex items-center gap-2 mt-4">
+                          {manager.profiles.social_links.slack && (
+                            <a href={manager.profiles.social_links.slack} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-[#4A154B]/10 text-[#4A154B] hover:bg-[#4A154B] hover:text-white transition-all">
+                              <SlackIcon className="w-3 h-3" />
+                            </a>
+                          )}
+                          {manager.profiles.social_links.linkedin && (
+                            <a href={manager.profiles.social_links.linkedin} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-[#0077B5]/10 text-[#0077B5] hover:bg-[#0077B5] hover:text-white transition-all">
+                              <LinkedinIcon className="w-3 h-3" />
+                            </a>
+                          )}
+                          {manager.profiles.social_links.twitter && (
+                            <a href={manager.profiles.social_links.twitter} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-foreground/10 text-foreground hover:bg-foreground hover:text-background transition-all">
+                              <TwitterIcon className="w-3 h-3" />
+                            </a>
+                          )}
+                          {manager.profiles.social_links.github && (
+                            <a href={manager.profiles.social_links.github} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-foreground/10 text-foreground hover:bg-foreground hover:text-background transition-all">
+                              <GithubIcon className="w-3 h-3" />
+                            </a>
+                          )}
+                          {manager.profiles.social_links.website && (
+                            <a href={manager.profiles.social_links.website} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
+                              <Globe className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -419,6 +551,37 @@ export default function TeamPage() {
                       <div className="pr-8 md:pr-16">
                         <p className="text-lg md:text-2xl font-black tracking-tighter text-foreground uppercase font-heading leading-tight">{leader.profiles?.full_name}</p>
                         <p className="text-[8px] md:text-[9px] font-black text-blue-500/60 uppercase tracking-[0.4em] mt-1">Lead</p>
+                        
+                        {/* Lead Social Links */}
+                        {leader.profiles?.social_links && Object.values(leader.profiles.social_links).some(link => !!link) && (
+                          <div className="flex items-center gap-2 mt-3">
+                            {leader.profiles.social_links.slack && (
+                              <a href={leader.profiles.social_links.slack} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-[#4A154B]/10 text-[#4A154B] hover:bg-[#4A154B] hover:text-white transition-all">
+                                <SlackIcon className="w-3 h-3" />
+                              </a>
+                            )}
+                            {leader.profiles.social_links.linkedin && (
+                              <a href={leader.profiles.social_links.linkedin} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-[#0077B5]/10 text-[#0077B5] hover:bg-[#0077B5] hover:text-white transition-all">
+                                <LinkedinIcon className="w-3 h-3" />
+                              </a>
+                            )}
+                            {leader.profiles.social_links.twitter && (
+                              <a href={leader.profiles.social_links.twitter} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-foreground/10 text-foreground hover:bg-foreground hover:text-background transition-all">
+                                <TwitterIcon className="w-3 h-3" />
+                              </a>
+                            )}
+                            {leader.profiles.social_links.github && (
+                              <a href={leader.profiles.social_links.github} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-foreground/10 text-foreground hover:bg-foreground hover:text-background transition-all">
+                                <GithubIcon className="w-3 h-3" />
+                              </a>
+                            )}
+                            {leader.profiles.social_links.website && (
+                              <a href={leader.profiles.social_links.website} target="_blank" rel="noopener noreferrer" className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
+                                <Globe className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -460,6 +623,37 @@ export default function TeamPage() {
                     <div className="ml-4 md:ml-6 pr-12 md:pr-20">
                       <p className="text-lg md:text-xl font-black text-foreground uppercase font-heading leading-tight tracking-tight">{member.profiles?.full_name || 'MEMBER'}</p>
                       <p className="text-[8px] md:text-[9px] font-black text-emerald-500/60 uppercase tracking-[0.4em] mt-1">Member</p>
+                      
+                      {/* Member Social Links */}
+                      {member.profiles?.social_links && Object.values(member.profiles.social_links).some(link => !!link) && (
+                        <div className="flex items-center gap-2 mt-2">
+                          {member.profiles.social_links.slack && (
+                            <a href={member.profiles.social_links.slack} target="_blank" rel="noopener noreferrer" className="p-1 rounded-lg bg-[#4A154B]/10 text-[#4A154B] hover:bg-[#4A154B] hover:text-white transition-all">
+                              <SlackIcon className="w-2.5 h-2.5" />
+                            </a>
+                          )}
+                          {member.profiles.social_links.linkedin && (
+                            <a href={member.profiles.social_links.linkedin} target="_blank" rel="noopener noreferrer" className="p-1 rounded-lg bg-[#0077B5]/10 text-[#0077B5] hover:bg-[#0077B5] hover:text-white transition-all">
+                              <LinkedinIcon className="w-2.5 h-2.5" />
+                            </a>
+                          )}
+                          {member.profiles.social_links.twitter && (
+                            <a href={member.profiles.social_links.twitter} target="_blank" rel="noopener noreferrer" className="p-1 rounded-lg bg-foreground/10 text-foreground hover:bg-foreground hover:text-background transition-all">
+                              <TwitterIcon className="w-2.5 h-2.5" />
+                            </a>
+                          )}
+                          {member.profiles.social_links.github && (
+                            <a href={member.profiles.social_links.github} target="_blank" rel="noopener noreferrer" className="p-1 rounded-lg bg-foreground/10 text-foreground hover:bg-foreground hover:text-background transition-all">
+                              <GithubIcon className="w-2.5 h-2.5" />
+                            </a>
+                          )}
+                          {member.profiles.social_links.website && (
+                            <a href={member.profiles.social_links.website} target="_blank" rel="noopener noreferrer" className="p-1 rounded-lg bg-primary/10 text-primary hover:bg-primary hover:text-white transition-all">
+                              <Globe className="w-2.5 h-2.5" />
+                            </a>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -468,6 +662,12 @@ export default function TeamPage() {
           </div>
         </div>
       )}
+
+      <ViewProfileModal 
+        profile={selectedProfile} 
+        open={profileModalOpen} 
+        onOpenChange={setProfileModalOpen} 
+      />
     </div>
   )
 }

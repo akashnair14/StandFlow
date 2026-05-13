@@ -15,12 +15,15 @@ import { Bell, Search, User, LogOut, Settings, Menu, ShieldCheck } from 'lucide-
 import {
   Sheet,
   SheetContent,
+  SheetHeader,
+  SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet"
 import { Sidebar } from './sidebar'
 import { Button } from '@/components/ui/button'
 import { useState } from 'react'
 import { ProfileSettingsModal } from '@/components/profile/profile-settings-modal'
+import { AccountSettingsModal } from '@/components/settings/account-settings-modal'
 
 interface TopNavProps {
   profile: Profile | null
@@ -28,6 +31,7 @@ interface TopNavProps {
 
 export function TopNav({ profile }: TopNavProps) {
   const [profileModalOpen, setProfileModalOpen] = useState(false)
+  const [accountModalOpen, setAccountModalOpen] = useState(false)
 
   return (
     <>
@@ -40,6 +44,9 @@ export function TopNav({ profile }: TopNavProps) {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64 border-none">
+              <SheetHeader className="sr-only">
+                <SheetTitle>Mobile Sidebar Navigation</SheetTitle>
+              </SheetHeader>
               <Sidebar profile={profile} />
             </SheetContent>
           </Sheet>
@@ -107,7 +114,10 @@ export function TopNav({ profile }: TopNavProps) {
                 >
                   <User className="w-4 h-4 text-muted-foreground group-focus:text-primary" /> Profile Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem className="rounded-xl py-3 px-4 font-bold text-xs gap-3 cursor-pointer hover:bg-primary/5 focus:bg-primary/5 focus:text-primary transition-colors">
+                <DropdownMenuItem 
+                  className="rounded-xl py-3 px-4 font-bold text-xs gap-3 cursor-pointer hover:bg-primary/5 focus:bg-primary/5 focus:text-primary transition-colors"
+                  onClick={() => setAccountModalOpen(true)}
+                >
                   <Settings className="w-4 h-4 text-muted-foreground" /> Account Settings
                 </DropdownMenuItem>
               </div>
@@ -129,6 +139,12 @@ export function TopNav({ profile }: TopNavProps) {
         profile={profile} 
         open={profileModalOpen} 
         onOpenChange={setProfileModalOpen} 
+      />
+
+      <AccountSettingsModal
+        profile={profile}
+        open={accountModalOpen}
+        onOpenChange={setAccountModalOpen}
       />
     </>
   )

@@ -17,7 +17,7 @@ interface TeamOverviewProps {
 
 export function TeamOverview({ teamId }: TeamOverviewProps) {
   const [members, setMembers] = useState<any[]>([])
-  const reports = useRealtimeReports(teamId || null)
+  const { reports, loading } = useRealtimeReports(teamId || null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -59,9 +59,9 @@ export function TeamOverview({ teamId }: TeamOverviewProps) {
                 <div className="flex items-center gap-5">
                   <div className="relative">
                     <Avatar className="h-16 w-16 rounded-2xl shadow-xl border-2 border-background transition-all group-hover/member:scale-110 group-hover/member:rotate-3">
-                      <AvatarImage src={(member.profiles as any)?.avatar_url} />
+                      <AvatarImage src={member.profiles?.avatar_url || undefined} />
                       <AvatarFallback className="rounded-2xl bg-secondary text-muted-foreground font-black text-lg">
-                        {(member.profiles as any)?.full_name?.charAt(0)}
+                        {member.profiles?.full_name?.charAt(0)}
                       </AvatarFallback>
                     </Avatar>
                     <div className={cn(
@@ -72,7 +72,7 @@ export function TeamOverview({ teamId }: TeamOverviewProps) {
                     </div>
                   </div>
                   <div>
-                    <p className="text-lg font-black tracking-tighter text-foreground">{(member.profiles as any)?.full_name}</p>
+                    <p className="text-lg font-black tracking-tighter text-foreground">{member.profiles?.full_name}</p>
                     <div className="flex items-center gap-2 mt-1">
                       <p className={cn(
                         "text-[9px] uppercase tracking-[0.2em] font-black",

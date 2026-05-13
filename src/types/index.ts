@@ -7,6 +7,14 @@ export interface Profile {
   phone: string | null;
   role: Role;
   updated_at: string;
+  social_links?: {
+    slack?: string;
+    linkedin?: string;
+    twitter?: string;
+    github?: string;
+    website?: string;
+    whatsapp?: string;
+  } | null;
 }
 
 export interface Team {
@@ -21,12 +29,14 @@ export interface TeamMember {
   user_id: string;
   role: Role;
   joined_at: string;
+  profiles?: Profile | null;
 }
 
 export interface ReportContent {
-  completed: string[];
-  planned: string[];
-  blockers: string[];
+  completed: string[] | string;
+  planned: string[] | string;
+  blockers: string[] | string;
+  mood?: string;
 }
 
 export interface Report {
@@ -36,5 +46,5 @@ export interface Report {
   content: ReportContent;
   created_at: string;
   date: string;
-  profile?: Profile;
+  profiles?: Profile | null;
 }

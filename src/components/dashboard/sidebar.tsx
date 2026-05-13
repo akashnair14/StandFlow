@@ -23,9 +23,10 @@ import { Button } from '@/components/ui/button'
 
 interface SidebarProps {
   profile: Profile | null
+  className?: string
 }
 
-export function Sidebar({ profile }: SidebarProps) {
+export function Sidebar({ profile, className }: SidebarProps) {
   const pathname = usePathname()
   const { theme, setTheme } = useTheme()
 
@@ -57,7 +58,7 @@ export function Sidebar({ profile }: SidebarProps) {
   ]
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-card border-r border-border/40 blueprint-bg">
+    <aside className={cn("flex flex-col w-64 bg-card border-r border-border/40 blueprint-bg h-full", className)}>
       <div className="p-8 pb-6">
         <Link href="/dashboard" className="flex items-center gap-3 group">
           <div className="bg-primary p-2 rounded-2xl group-hover:rotate-12 transition-all shadow-[0_0_20px_-5px_rgba(76,215,246,0.4)]">

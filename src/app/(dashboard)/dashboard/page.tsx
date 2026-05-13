@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
-import { ReportForm } from '@/components/reports/report-form'
 import { ReportList } from '@/components/reports/report-list'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -16,67 +15,63 @@ import {
   FileText, 
   Send,
   ChevronRight,
-  Plus,
   Target,
   ShieldAlert,
   Zap
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useRealtimeReports } from '@/lib/supabase/hooks'
 
 export default function DashboardPage() {
-  const [data, setData] = useState<any>(null)
-  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [context, setContext] = useState<any>(null)
   const supabase = createClient()
 
+  const teamId = context?.teamId
+  const { reports: teamReports, loading } = useRealtimeReports(teamId || null)
+
   useEffect(() => {
-    async function fetchData() {
+    async function fetchContext() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
-      let { data: membership } = await supabase.from('team_members').select('team_id, teams(*)').eq('user_id', user.id).maybeSingle()
-      const today = new Date().toISOString().split('T')[0]
-      
-      let teamId = membership?.team_id
+      const { getUserActiveTeam } = await import('@/app/auth/actions')
+      const teamResult = await getUserActiveTeam()
+      const tId = teamResult.teamId
 
-      // Fallback: If not in team_members, check if they OWN a team
-      if (!teamId) {
-        const { data: ownedTeam } = await supabase.from('teams').select('*').eq('owner_id', user.id).maybeSingle()
-        if (ownedTeam) {
-          teamId = ownedTeam.id
-          membership = { team_id: teamId, teams: ownedTeam } as any
-        }
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle()
+      
+      let membership = null
+      if (tId) {
+        const { data: mData } = await supabase
+          .from('team_members')
+          .select('team_id, teams(*)')
+          .eq('user_id', user.id)
+          .eq('team_id', tId)
+          .maybeSingle()
+        membership = mData
       }
       
-      const { data: teamReports } = await supabase.from('reports').select('*, profiles(*)').eq('team_id', teamId).eq('date', today)
-      const { data: teamMembers } = await supabase.from('team_members').select('*, profiles(*)').eq('team_id', teamId)
-      const { data: todayReport } = await supabase.from('reports').select('*').eq('user_id', user.id).eq('date', today).maybeSingle()
+      const { data: teamMembers } = tId 
+        ? await supabase.from('team_members').select('*, profiles(*)').eq('team_id', tId)
+        : { data: [] }
 
-      setData({
+      setContext({
         profile,
         membership,
-        todayReport,
-        teamReports,
-        teamMembers,
-        teamId,
-        today
+        teamMembers: teamMembers || [],
+        teamId: tId,
       })
     }
-    fetchData()
+    fetchContext()
+  }, [supabase])
 
-    const handleOpenForm = () => setIsFormOpen(true)
-    const handleCloseForm = () => setIsFormOpen(false)
-    window.addEventListener('open-report-form', handleOpenForm)
-    window.addEventListener('close-report-form', handleCloseForm)
-    return () => {
-      window.removeEventListener('open-report-form', handleOpenForm)
-      window.removeEventListener('close-report-form', handleCloseForm)
-    }
-  }, [])
+  if (!context || loading) return (
+    <div className="flex-1 flex items-center justify-center">
+      <Zap className="w-12 h-12 text-primary animate-pulse" />
+    </div>
+  )
 
-  if (!data) return null
-
-  const { teamReports, teamMembers, teamId } = data
+  const { teamMembers, profile } = context
   const reportedCount = teamReports?.length || 0
   const totalCount = teamMembers?.length || 0
   const participationRate = totalCount > 0 ? Math.round((reportedCount / totalCount) * 100) : 0
@@ -301,31 +296,6 @@ export default function DashboardPage() {
            <ReportList reports={teamReports || []} />
         </Card>
       </div>
-
-      {/* Floating Form Toggle */}
-      {isFormOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6 bg-background/90 backdrop-blur-2xl animate-in fade-in duration-500">
-          <div className="max-w-5xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar bg-card/95 backdrop-blur-3xl rounded-[2.5rem] shadow-2xl border border-border/50">
-            <div className="p-6 md:p-8 lg:p-10">
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="text-3xl font-black tracking-tighter text-foreground uppercase">Submit Update</h2>
-                  <p className="text-primary text-[10px] font-black tracking-[0.4em] uppercase mt-1">Daily Standup</p>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-14 w-14 rounded-[1.5rem] bg-secondary/40 text-foreground hover:bg-destructive hover:text-destructive-foreground transition-all hover:rotate-90"
-                  onClick={() => setIsFormOpen(false)}
-                >
-                  <Plus className="w-8 h-8 rotate-45" />
-                </Button>
-              </div>
-              <ReportForm teamId={teamId} />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
