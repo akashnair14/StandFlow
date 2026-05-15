@@ -8,32 +8,9 @@ import { createClient } from '@/lib/supabase/client'
 
 export function GlobalReportForm() {
   const [isOpen, setIsOpen] = useState(false)
-  const [teamId, setTeamId] = useState<string>('')
-  const supabase = createClient()
-
-  const fetchTeamId = async () => {
-    try {
-      const { getUserActiveTeam } = await import('@/app/auth/actions')
-      const result = await getUserActiveTeam()
-      
-      if (result.teamId) {
-        setTeamId(result.teamId)
-        return result.teamId
-      }
-      return ''
-    } catch (err) {
-      console.error('Error fetching teamId:', err)
-      return ''
-    }
-  }
 
   useEffect(() => {
-    fetchTeamId()
-
-    const handleOpen = async () => {
-      await fetchTeamId()
-      setIsOpen(true)
-    }
+    const handleOpen = () => setIsOpen(true)
     const handleClose = () => setIsOpen(false)
 
     window.addEventListener('open-report-form', handleOpen)
@@ -43,7 +20,7 @@ export function GlobalReportForm() {
       window.removeEventListener('open-report-form', handleOpen)
       window.removeEventListener('close-report-form', handleClose)
     }
-  }, [supabase])
+  }, [])
 
   if (!isOpen) return null
 
@@ -65,7 +42,7 @@ export function GlobalReportForm() {
               <Plus className="w-8 h-8 rotate-45" />
             </Button>
           </div>
-          <ReportForm teamId={teamId} />
+          <ReportForm />
         </div>
       </div>
     </div>

@@ -34,7 +34,7 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
 
-      const { getUserActiveTeam } = await import('@/app/auth/actions')
+      const { getUserActiveTeam } = await import('@/lib/actions/teams')
       const teamResult = await getUserActiveTeam()
       const tId = teamResult.teamId
 

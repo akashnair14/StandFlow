@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label'
 import { UserPlus, Loader2, Mail, Copy, Check, Share2, Users, ShieldPlus, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
-import { inviteMember } from '@/app/(dashboard)/team/actions'
+import { inviteMember } from '@/lib/actions/teams'
 import { cn } from '@/lib/utils'
 
 export function InviteMemberModal({ teamId, role }: { teamId: string | null, role?: string | null }) {

@@ -20,6 +20,7 @@ import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { postReportAction } from '@/lib/actions/reports'
 
 const formSchema = z.object({
   mood: z.enum(['on-track', 'stuck', 'blocked']),
@@ -30,7 +31,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>
 
-export function ReportForm({ teamId }: { teamId: string }) {
+export function ReportForm() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const supabase = createClient()
@@ -48,26 +49,9 @@ export function ReportForm({ teamId }: { teamId: string }) {
   async function onSubmit(values: FormValues) {
     setIsLoading(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('Authentication Failure')
+      const result = await postReportAction(values)
 
-      if (!teamId || teamId.trim() === '') {
-        throw new Error('You are not currently assigned to any team. Please join or create a team to post updates.')
-      }
-
-      const { error } = await supabase.from('reports').insert({
-        user_id: user.id,
-        team_id: teamId,
-        content: {
-          ...values,
-          completed: values.completed.split('\n').filter(i => i.trim()),
-          planned: values.planned.split('\n').filter(i => i.trim()),
-          blockers: values.blockers?.split('\n').filter(i => i.trim()) || [],
-        },
-        date: new Date().toISOString().split('T')[0],
-      })
-
-      if (error) throw error
+      if (result.error) throw new Error(result.error)
 
       toast.success('Update Submitted', {
         description: 'Your daily update has been successfully submitted.'

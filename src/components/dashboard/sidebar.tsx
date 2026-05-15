@@ -18,7 +18,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from '@teispace/next-themes'
 import { Profile } from '@/types'
-import { signOut } from '@/app/auth/actions'
+import { signOut } from '@/lib/actions/auth'
 import { Button } from '@/components/ui/button'
 
 interface SidebarProps {

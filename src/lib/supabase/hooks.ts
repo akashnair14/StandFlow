@@ -18,7 +18,7 @@ export function useRealtimeReports(teamId: string | string[] | null) {
     // Initial fetch
     const fetchInitial = async () => {
       try {
-        const { getTeamReportsAction } = await import('@/app/auth/actions')
+        const { getTeamReportsAction } = await import('@/lib/actions/reports')
         // We handle the first teamId for now, or could expand to all
         const firstTeamId = teamIds[0]
         const result = await getTeamReportsAction(firstTeamId)

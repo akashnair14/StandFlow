@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu'
-import { signOut } from '@/app/auth/actions'
+import { signOut } from '@/lib/actions/auth'
 import { Bell, Search, User, LogOut, Settings, Menu, ShieldCheck } from 'lucide-react'
 import {
   Sheet,

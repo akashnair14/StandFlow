@@ -9,7 +9,7 @@ import { Users, Mail, MessageSquare, MoreHorizontal, ShieldPlus, Loader2, Zap, A
 import { SlackIcon, LinkedinIcon, TwitterIcon, GithubIcon, WhatsAppIcon } from '@/components/ui/brand-icons'
 import { Button } from '@/components/ui/button'
 import { InviteMemberModal } from '@/components/team/invite-member-modal'
-import { createTeamAction } from '@/app/(dashboard)/team/actions'
+import { createTeamAction } from '@/lib/actions/teams'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {

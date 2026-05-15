@@ -34,7 +34,7 @@ export function ReportList({ reports }: ReportListProps) {
 
   const handleAcknowledge = async (reportId: string) => {
     try {
-      const { acknowledgeReportAction } = await import('@/app/auth/actions')
+      const { acknowledgeReportAction } = await import('@/lib/actions/reports')
       const result = await acknowledgeReportAction(reportId)
       
       if (result.success) {

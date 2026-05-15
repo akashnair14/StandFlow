@@ -124,3 +124,8 @@ create policy "Users can update their own avatars."
   on storage.objects for update
   to authenticated
   using ( bucket_id = 'avatars' );
+
+-- Performance Indexes
+create index if not exists reports_team_id_date_idx on reports (team_id, date);
+create index if not exists reports_user_id_idx on reports (user_id);
+create index if not exists team_members_user_id_team_id_idx on team_members (user_id, team_id);
